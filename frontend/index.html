@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PitchFight AI</title>
+  <link rel="icon" href="/frontend/assets/logo.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/frontend/styles.css" />
+</head>
+<body>
+  <div class="bg-glow"></div>
+
+  <div id="error-banner" class="error-banner" hidden role="alert"></div>
+
+  <main id="app" class="app">
+    <!-- Landing -->
+    <section id="screen-landing" class="screen active">
+      <header class="hero">
+        <img src="/frontend/assets/logo.svg" alt="PitchFight AI logo" class="logo" />
+        <h1>PitchFight AI</h1>
+        <p class="tagline">Your first tough pitch should not be in front of a real judge.</p>
+        <p class="subtitle">A small-model pressure simulator for student founders.</p>
+      </header>
+      <div class="hero-actions">
+        <button id="btn-load-sample" class="btn btn-secondary">Load Demo Startup</button>
+        <button id="btn-go-setup" class="btn btn-primary">Start Pitch Battle</button>
+      </div>
+    </section>
+
+    <!-- Setup -->
+    <section id="screen-setup" class="screen">
+      <div class="panel glass">
+        <div class="panel-header">
+          <h2>Startup Context</h2>
+          <button id="btn-back-landing" class="btn btn-ghost">Back</button>
+        </div>
+        <form id="startup-form" class="startup-form">
+          <label>Name<input name="name" type="text" placeholder="EventRadar AI" required /></label>
+          <label>Problem<textarea name="problem" rows="2" required></textarea></label>
+          <label>Target Users<input name="target_users" type="text" required /></label>
+          <label>Solution<textarea name="solution" rows="2" required></textarea></label>
+          <label>Why AI<textarea name="why_ai" rows="2" required></textarea></label>
+          <label>Competitors<input name="competitors" type="text" required /></label>
+          <label>Traction<input name="traction" type="text" required /></label>
+          <label>Ask<input name="ask" type="text" required /></label>
+        </form>
+      </div>
+
+      <div class="panel glass">
+        <h2>Choose Your Opponent</h2>
+        <div class="persona-grid">
+          <button class="persona-card" data-persona="skeptical_vc">
+            <span class="persona-icon">💼</span>
+            <h3>Skeptical VC</h3>
+            <p>Market, moat, revenue, defensibility</p>
+          </button>
+          <button class="persona-card" data-persona="technical_judge">
+            <span class="persona-icon">🛠️</span>
+            <h3>Technical Judge</h3>
+            <p>AI necessity, architecture, feasibility</p>
+          </button>
+          <button class="persona-card selected" data-persona="hackathon_judge">
+            <span class="persona-icon">🏆</span>
+            <h3>Hackathon Judge</h3>
+            <p>Novelty, demo clarity, MVP strength</p>
+          </button>
+        </div>
+        <button id="btn-start-battle" class="btn btn-primary btn-wide">Enter the Arena</button>
+      </div>
+    </section>
+
+    <!-- Battle -->
+    <section id="screen-battle" class="screen">
+      <div class="battle-layout">
+        <aside class="battle-meta glass">
+          <h2>Battle Arena</h2>
+          <div class="meta-item"><span>Round</span><strong id="round-counter">1</strong></div>
+          <div class="meta-item"><span>Pressure</span><strong id="pressure-level" class="pressure-high">High</strong></div>
+          <div class="meta-item"><span>Phase</span><strong id="battle-phase" hidden>explore</strong></div>
+          <div class="meta-item"><span>Attack Tag</span><strong id="attack-tag">—</strong></div>
+          <button id="btn-end-battle" class="btn btn-danger btn-wide">End Battle</button>
+          <button id="btn-back-scorecard" class="btn btn-ghost btn-wide" hidden>Back to Scorecard</button>
+        </aside>
+
+        <div class="battle-chat glass">
+          <div id="chat-window" class="chat-window" aria-live="polite"></div>
+          <form id="chat-form" class="chat-input-row">
+            <textarea id="user-input" rows="2" placeholder="Defend your startup under pressure..."></textarea>
+            <button id="btn-send" type="submit" class="btn btn-primary">Send</button>
+          </form>
+          <p id="battle-status" class="status-text" hidden></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Scorecard -->
+    <section id="screen-scorecard" class="screen">
+      <div class="panel glass scorecard-panel">
+        <header class="scorecard-header">
+          <div class="scorecard-header-left">
+            <h2>Battle Scorecard</h2>
+            <button id="btn-view-conversation" class="btn btn-ghost btn-sm">View Conversation</button>
+          </div>
+          <div class="overall-score">
+            <span>Overall</span>
+            <strong id="overall-score">0</strong>
+            <span id="overall-label" hidden style="font-size:0.85rem;color:var(--gold);display:block;margin-top:0.2rem"></span>
+          </div>
+          <p id="scorecard-source-badge" hidden style="font-size:0.8rem;opacity:0.7;margin:0"></p>
+        </header>
+
+        <div id="score-bars" class="score-bars"></div>
+
+        <p id="signals-summary" class="signals-summary" hidden></p>
+
+        <div class="feedback-grid">
+          <article class="feedback-card highlight">
+            <h3>Improved Answer</h3>
+            <p id="improved-answer"></p>
+          </article>
+          <article class="feedback-card highlight">
+            <h3>Improved Pitch</h3>
+            <p id="improved-pitch"></p>
+          </article>
+          <article class="feedback-card">
+            <h3>Best Answer</h3>
+            <p id="best-answer"></p>
+          </article>
+          <article class="feedback-card">
+            <h3>Weakest Answer</h3>
+            <p id="weakest-answer"></p>
+          </article>
+        </div>
+
+        <div class="prep-questions">
+          <h3>Top 3 Prep Questions</h3>
+          <ol id="top-questions"></ol>
+        </div>
+
+        <div class="scorecard-actions">
+          <button id="btn-reset" class="btn btn-secondary">New Battle</button>
+          <button id="btn-back-setup" class="btn btn-primary">Edit Startup</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="loading-overlay" class="loading-overlay" hidden>
+    <div class="spinner"></div>
+    <p>Loading...</p>
+  </div>
+
+  <script type="module" src="/frontend/script.js"></script>
+</body>
+</html>

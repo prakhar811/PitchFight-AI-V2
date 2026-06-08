@@ -1,0 +1,11 @@
+{
+  "dimensions": {
+    "clarity": 15,
+    "problem_understanding": 20,
+    "market_awareness": 15,
+    "differentiation": 20,
+    "business_model": 15,
+    "objection_handling": 15
+  },
+  "total": 100
+}

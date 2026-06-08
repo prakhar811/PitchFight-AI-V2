@@ -1,0 +1,9 @@
+gradio>=5.0.0
+fastapi
+uvicorn
+pydantic
+python-dotenv
+numpy
+openai>=1.0.0
+httpx
+requests
