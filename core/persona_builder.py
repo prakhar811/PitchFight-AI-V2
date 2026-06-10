@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from core.judge_settings import get_question_style, normalize_difficulty
+
 PERSONA_LABELS = {
     "skeptical_vc": "Skeptical VC",
     "technical_judge": "Technical Judge",
@@ -12,19 +14,36 @@ PERSONA_LABELS = {
 def build_persona_prompt(
     persona: str,
     startup: dict,
-    difficulty: str = "high",
+    difficulty: str = "practice",
 ) -> str:
-    """Build a system prompt for the selected opponent persona."""
+    """Build a system prompt for the selected opponent persona.
+
+    The difficulty argument accepts any alias (e.g. "high", "practice",
+    "beginner") — it is normalized to a canonical profile internally.
+    question_style.instruction from the profile is injected so Nemotron
+    adjusts wording complexity, jargon level, and tone accordingly.
+    """
+    profile_name = normalize_difficulty(difficulty)
+    qs = get_question_style(profile_name)
+
     label = PERSONA_LABELS.get(persona, "Tough Judge")
     name = startup.get("name", "this startup")
     problem = startup.get("problem", "")
     solution = startup.get("solution", "")
     why_ai = startup.get("why_ai", "")
 
-    rules = """
-Behavior rules:
-- Ask one sharp question at a time.
-- Keep responses under 4 sentences.
+    # Behavior rules shared across all personas
+    max_sentences = qs.get("max_sentences", 3)
+    avoid_jargon = qs.get("avoid_jargon", False)
+    jargon_note = (
+        "\n- FORBIDDEN WORDS for this profile: unit economics, contribution margin, defensibility, "
+        "TAM, SAM, SOM, moat, CAC, LTV, load-bearing, demonstrably, quantify match accuracy, "
+        "precision threshold. Use plain student-friendly language instead."
+        if avoid_jargon else ""
+    )
+    rules = f"""Behavior rules:
+- Ask one question at a time — never ask two questions in a single response.
+- Keep responses under {max_sentences} sentences.
 - Reference the founder's previous answer when pushing back.
 - Do not give advice during the battle.
 - Do not compliment the founder.
@@ -32,6 +51,8 @@ Behavior rules:
 - Raise difficulty after strong answers.
 - Stay in character at all times.
 - Be firm but not abusive.
+- Use plain, clear language unless the difficulty profile explicitly allows jargon.{jargon_note}
+- Voice-style or casual answers that contain concrete numbers or validation still deserve credit — do not dismiss them for tone.
 """.strip()
 
     persona_focus = {
@@ -52,8 +73,11 @@ Behavior rules:
 
     focus = persona_focus.get(persona, persona_focus["hackathon_judge"])
 
+    # Difficulty-specific question instruction from config
+    question_instruction = qs.get("instruction", "")
+
     return f"""You are {label}, a tough pitch opponent in PitchFight AI.
-Difficulty: {difficulty}
+Difficulty profile: {profile_name}
 
 Startup: {name}
 Problem: {problem}
@@ -61,6 +85,9 @@ Solution: {solution}
 Why AI: {why_ai}
 
 {focus}
+
+QUESTION STYLE ({profile_name}):
+{question_instruction}
 
 {rules}
 """

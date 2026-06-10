@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -13,16 +14,22 @@ from gradio import Server
 from core.api_handlers import (
     handle_chat_round,
     handle_deck_critique_placeholder,
-    handle_deal_session_placeholder,
     handle_end_battle,
+    handle_end_deal,
+    handle_deal_round,
     handle_load_sample,
     handle_reset_session,
+    handle_retry_weakest_start,
+    handle_retry_weakest_submit,
+    handle_start_deal_phase,
     handle_start_session,
-    handle_voice_pitch_placeholder,
+    handle_voice_pitch,
+    handle_voice_turn,
 )
 from core import model_router
 
 APP_VERSION = "0.1.0"
+PITCHFIGHT_PORT = int(os.getenv("PITCHFIGHT_PORT", "7860"))
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 
 app = Server()
@@ -65,19 +72,44 @@ def api_end_battle(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
     return handle_end_battle(payload)
 
 
+@app.post("/api/retry-weakest-question/start")
+def api_retry_weakest_start(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    return handle_retry_weakest_start(payload)
+
+
+@app.post("/api/retry-weakest-question/submit")
+def api_retry_weakest_submit(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    return handle_retry_weakest_submit(payload)
+
+
 @app.post("/api/reset-session")
 def api_reset_session(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
     return handle_reset_session(payload)
 
 
 @app.post("/api/voice-pitch")
-def api_voice_pitch(payload: dict[str, Any] = Body(default_factory=dict)) -> dict[str, str]:
-    return handle_voice_pitch_placeholder(payload)
+def api_voice_pitch(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    return handle_voice_pitch(payload)
 
 
-@app.post("/api/start-deal-session")
-def api_start_deal_session(payload: dict[str, Any] = Body(default_factory=dict)) -> dict[str, str]:
-    return handle_deal_session_placeholder(payload)
+@app.post("/api/voice-turn")
+def api_voice_turn(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    return handle_voice_turn(payload)
+
+
+@app.post("/api/start-deal-phase")
+def api_start_deal_phase(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    return handle_start_deal_phase(payload)
+
+
+@app.post("/api/deal-round")
+def api_deal_round(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    return handle_deal_round(payload)
+
+
+@app.post("/api/end-deal")
+def api_end_deal(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    return handle_end_deal(payload)
 
 
 @app.post("/api/deck-critique")
@@ -131,4 +163,17 @@ app.mount("/frontend", StaticFiles(directory=str(FRONTEND_DIR)), name="frontend"
 
 
 if __name__ == "__main__":
-    app.launch(show_error=True)
+    url = f"http://127.0.0.1:{PITCHFIGHT_PORT}"
+    print(f"Starting PitchFight AI on {url}")
+    try:
+        app.launch(show_error=True, server_port=PITCHFIGHT_PORT)
+    except OSError as exc:
+        if "empty port" in str(exc).lower() or str(PITCHFIGHT_PORT) in str(exc):
+            print(
+                f"\nERROR: Port {PITCHFIGHT_PORT} is already in use by another process.\n"
+                f"Stop the old server (Ctrl+C in its terminal), or free the port:\n"
+                f"  netstat -ano | findstr \":{PITCHFIGHT_PORT}\"\n"
+                f"  taskkill /PID <pid> /F\n"
+                f"Then run: python app.py\n"
+            )
+        raise SystemExit(1) from exc

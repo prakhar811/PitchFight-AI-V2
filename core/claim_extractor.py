@@ -156,6 +156,120 @@ def _is_non_answer(text: str) -> bool:
 # Main extractor
 # ---------------------------------------------------------------------------
 
+def _accumulate_signals_from_text(
+    text: str,
+    *,
+    all_numbers: list[str],
+    all_pct: list[str],
+    all_pricing: list[str],
+    all_user_counts: list[str],
+    all_validation: list[str],
+    all_colleges: list[str],
+    all_competitors: list[str],
+    all_tech: list[str],
+    all_revenue: list[str],
+    all_retention: list[str],
+    all_gtm: list[str],
+    all_vague: list[str],
+) -> None:
+    """Run regex extractors on a single text block into accumulator lists."""
+    if not text or not str(text).strip():
+        return
+    all_numbers.extend(_match_all(_NUMBER_METRIC, text))
+    all_pct.extend(_match_all(_PERCENTAGE, text))
+    all_pricing.extend(_match_all(_CURRENCY, text))
+    all_user_counts.extend(_match_all(_USER_COUNT, text))
+    all_validation.extend(_match_all(_VALIDATION, text))
+    all_colleges.extend(_match_all(_COLLEGE_CAMPUS, text))
+    all_competitors.extend(_match_all(_COMPETITORS, text))
+    all_tech.extend(_match_all(_TECH_MECHANISM, text))
+    all_revenue.extend(_match_all(_REVENUE, text))
+    all_retention.extend(_match_all(_RETENTION, text))
+    all_gtm.extend(_match_all(_GTM, text))
+    all_vague.extend(_match_all(_VAGUE_PHRASES, text))
+
+
+def extract_startup_context_signals(session: dict) -> dict[str, Any]:
+    """Extract evidence signals from startup form + voice pitch transcript only.
+
+    Used when the founder gave no battle answers but described the idea upfront.
+    Does not include battle Q&A history.
+    """
+    startup = session.get("startup", {}) or {}
+    texts: list[str] = []
+    for key in (
+        "name", "problem", "target_users", "solution",
+        "why_ai", "competitors", "traction", "ask",
+    ):
+        val = str(startup.get(key, "")).strip()
+        if val:
+            texts.append(val)
+
+    voice_pitch = session.get("voice_pitch") or {}
+    if isinstance(voice_pitch, dict):
+        transcript = str(voice_pitch.get("transcript", "")).strip()
+        if transcript:
+            texts.append(transcript)
+
+    all_numbers: list[str] = []
+    all_pct: list[str] = []
+    all_pricing: list[str] = []
+    all_user_counts: list[str] = []
+    all_validation: list[str] = []
+    all_colleges: list[str] = []
+    all_competitors: list[str] = []
+    all_tech: list[str] = []
+    all_revenue: list[str] = []
+    all_retention: list[str] = []
+    all_gtm: list[str] = []
+    all_vague: list[str] = []
+
+    for block in texts:
+        _accumulate_signals_from_text(
+            block,
+            all_numbers=all_numbers,
+            all_pct=all_pct,
+            all_pricing=all_pricing,
+            all_user_counts=all_user_counts,
+            all_validation=all_validation,
+            all_colleges=all_colleges,
+            all_competitors=all_competitors,
+            all_tech=all_tech,
+            all_revenue=all_revenue,
+            all_retention=all_retention,
+            all_gtm=all_gtm,
+            all_vague=all_vague,
+        )
+
+    total_signals = (
+        len(_dedup(all_numbers)) + len(_dedup(all_pct)) +
+        len(_dedup(all_pricing)) + len(_dedup(all_user_counts)) +
+        len(_dedup(all_validation)) + len(_dedup(all_colleges)) +
+        len(_dedup(all_competitors)) + len(_dedup(all_tech)) +
+        len(_dedup(all_revenue))
+    )
+
+    return {
+        "numbers":               _dedup(all_numbers),
+        "percentages":           _dedup(all_pct),
+        "pricing":               _dedup(all_pricing),
+        "user_counts":           _dedup(all_user_counts),
+        "validation":            _dedup(all_validation),
+        "college_mentions":      _dedup(all_colleges),
+        "competitors":           _dedup(all_competitors),
+        "technical_mechanisms":  _dedup(all_tech),
+        "revenue_signals":       _dedup(all_revenue),
+        "retention_signals":     _dedup(all_retention),
+        "gtm_signals":           _dedup(all_gtm),
+        "non_answers":           [],
+        "vague_claims":          _dedup(all_vague),
+        "best_user_quotes":      [t[:200] for t in texts if len(t.split()) >= 6][:3],
+        "all_user_answers":      [],
+        "signal_count":          total_signals,
+        "source":                "startup_context",
+    }
+
+
 def extract_concrete_signals(session: dict) -> dict[str, Any]:
     """Extract evidence signals from all user turns in a session.
 
@@ -209,33 +323,43 @@ def extract_concrete_signals(session: dict) -> dict[str, Any]:
             answer_scores.append((0, ans))
             continue
 
-        nums    = _match_all(_NUMBER_METRIC, ans)
-        pcts    = _match_all(_PERCENTAGE, ans)
-        prices  = _match_all(_CURRENCY, ans)
+        nums: list[str] = []
+        pcts: list[str] = []
+        prices: list[str] = []
+        ucounts: list[str] = []
+        val: list[str] = []
+        cols: list[str] = []
+        comps: list[str] = []
+        techs: list[str] = []
+        revs: list[str] = []
+        rets: list[str] = []
+        gtms: list[str] = []
+        vagues: list[str] = []
+        _accumulate_signals_from_text(
+            ans,
+            all_numbers=all_numbers,
+            all_pct=all_pct,
+            all_pricing=all_pricing,
+            all_user_counts=all_user_counts,
+            all_validation=all_validation,
+            all_colleges=all_colleges,
+            all_competitors=all_competitors,
+            all_tech=all_tech,
+            all_revenue=all_revenue,
+            all_retention=all_retention,
+            all_gtm=all_gtm,
+            all_vague=all_vague,
+        )
+        nums = _match_all(_NUMBER_METRIC, ans)
+        pcts = _match_all(_PERCENTAGE, ans)
+        prices = _match_all(_CURRENCY, ans)
         ucounts = _match_all(_USER_COUNT, ans)
-        val     = _match_all(_VALIDATION, ans)
-        cols    = _match_all(_COLLEGE_CAMPUS, ans)
-        comps   = _match_all(_COMPETITORS, ans)
-        techs   = _match_all(_TECH_MECHANISM, ans)
-        revs    = _match_all(_REVENUE, ans)
-        rets    = _match_all(_RETENTION, ans)
-        gtms    = _match_all(_GTM, ans)
-        vagues  = _match_all(_VAGUE_PHRASES, ans)
+        val = _match_all(_VALIDATION, ans)
+        cols = _match_all(_COLLEGE_CAMPUS, ans)
+        comps = _match_all(_COMPETITORS, ans)
+        techs = _match_all(_TECH_MECHANISM, ans)
+        revs = _match_all(_REVENUE, ans)
 
-        all_numbers.extend(nums)
-        all_pct.extend(pcts)
-        all_pricing.extend(prices)
-        all_user_counts.extend(ucounts)
-        all_validation.extend(val)
-        all_colleges.extend(cols)
-        all_competitors.extend(comps)
-        all_tech.extend(techs)
-        all_revenue.extend(revs)
-        all_retention.extend(rets)
-        all_gtm.extend(gtms)
-        all_vague.extend(vagues)
-
-        # Signal density score for ranking quotes
         density = (
             len(nums) + len(pcts) + len(prices) + len(ucounts) +
             len(val) + len(cols) + len(comps) + len(techs) + len(revs)

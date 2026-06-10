@@ -8,7 +8,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-from core.attack_tags import get_attack_tags, get_next_attack_tag
+from core.attack_tags import get_attack_tags, get_next_attack_tag, get_answer_checklist
 from core.persona_builder import build_persona_prompt
 from core.samples import get_sample_startup
 from core.scoring_engine import (
@@ -18,10 +18,18 @@ from core.scoring_engine import (
     build_session_aware_fallback_scorecard,
 )
 from core.claim_extractor import extract_concrete_signals
+from core.judge_settings import normalize_difficulty, get_label, get_pressure_display_label
 from core import battle_flow
 from core import model_router
 from core import session_manager
 from core.output_sanitizer import sanitize_model_output
+from core import voice_handler
+from core import retry_handler
+from core import session_repository
+from core.deal_verdict import build_judge_verdict
+from core.deal_phase import start_deal_phase
+from core.deal_flow import next_deal_round
+from core.deal_scoring_engine import generate_deal_scorecard
 
 load_dotenv()
 
@@ -90,6 +98,37 @@ def get_battle_phase(round_number: int) -> str:
     if round_number <= 6:
         return "pressure"
     return "close"
+
+
+import re as _re
+
+_HAS_NUMBER = _re.compile(r"\d")
+_HAS_USER_WORD = _re.compile(
+    r"\b(users?|customers?|students?|people|patients?|teachers?|clients?|founders?|hospitals?)\b",
+    _re.IGNORECASE,
+)
+
+
+def _micro_coach_tip(message: str, quality: str, attack_tag: str, difficulty_profile: str) -> str:
+    """One short, encouraging nudge after a round — teaches the next answer, not the score.
+
+    Local only (no API). Trains the founder toward 'minimum viable answer': one number,
+    one user, one real result. Kept gentle for Practice; empty when nothing useful to add.
+    """
+    text = (message or "").strip()
+    if not text:
+        return ""
+    if quality == "non_answer":
+        return "Take a real guess next time — even one specific detail beats a blank."
+
+    has_number = bool(_HAS_NUMBER.search(text))
+    has_user = bool(_HAS_USER_WORD.search(text))
+
+    if not has_number:
+        return "Good start — next time add one number (a count, a result, or a price)."
+    if not has_user:
+        return "Nice, you gave a number — next time say who it's for or who it's from."
+    return "Solid — to go further, tie that proof directly to the question asked."
 
 
 def _recent_history(session_id: str, max_turns: int = _HISTORY_WINDOW) -> list[dict]:
@@ -221,16 +260,30 @@ def handle_start_session(payload: dict[str, Any]) -> dict[str, Any]:
     """Create a new pitch battle session and return the opening challenge."""
     startup = payload.get("startup") or {}
     persona = payload.get("persona", "technical_judge")
-    difficulty = payload.get("difficulty", "high")
+    # Accept difficulty_profile (new) or difficulty (legacy) — normalize both
+    raw_difficulty = (
+        payload.get("difficulty_profile")
+        or payload.get("difficulty")
+        or "practice"
+    )
+    difficulty_profile = normalize_difficulty(raw_difficulty)
+    difficulty_label = get_label(difficulty_profile)
     input_mode = payload.get("input_mode", "text")
     mode = payload.get("mode", "pitch_battle")
     model_mode = payload.get("model_mode", "premium_nvidia")
 
     session = session_manager.create_session(
-        startup, persona, difficulty, input_mode
+        startup, persona, difficulty_profile, input_mode
     )
     session["mode"] = mode
     session["model_mode"] = model_mode
+    # Store normalized profile so scorecard and chat rounds can use it
+    session["difficulty_profile"] = difficulty_profile
+    session["difficulty_label"] = difficulty_label
+
+    voice_pitch = payload.get("voice_pitch")
+    if input_mode == "voice" and isinstance(voice_pitch, dict):
+        session_manager.set_voice_pitch(session["session_id"], voice_pitch)
 
     mock_attack_tag, mock_ai_message = OPENING_MESSAGES.get(
         persona, OPENING_MESSAGES["technical_judge"]
@@ -244,7 +297,7 @@ def handle_start_session(payload: dict[str, Any]) -> dict[str, Any]:
     model_error: str | None = None
 
     try:
-        messages = _build_opening_messages(startup, persona, difficulty, mock_attack_tag)
+        messages = _build_opening_messages(startup, persona, difficulty_profile, mock_attack_tag)
         result = model_router.generate_opponent_response(
             messages,
             model_mode=model_mode,
@@ -268,12 +321,18 @@ def handle_start_session(payload: dict[str, Any]) -> dict[str, Any]:
 
     session_manager.append_ai_message(session["session_id"], ai_message, attack_tag)
 
+    # Phase 9.5: persist fully-populated session (opening message already in history).
+    session_repository.save_session(session)
+
+    _phase_start = get_battle_phase(1)
     return {
         "session_id": session["session_id"],
         "round": 1,
         "pressure_level": pressure_level(1),
-        "battle_phase": get_battle_phase(1),
+        "battle_phase": _phase_start,
+        "pressure_label": get_pressure_display_label(difficulty_profile, _phase_start),
         "attack_tag": attack_tag,
+        "answer_hint": get_answer_checklist(attack_tag),
         "ai_message": ai_message,
         "model_mode": used_model_mode,
         "provider": provider,
@@ -286,6 +345,8 @@ def handle_start_session(payload: dict[str, Any]) -> dict[str, Any]:
         "battle_complete": False,
         "can_continue": True,
         "next_action": "continue",
+        "difficulty_profile": difficulty_profile,
+        "difficulty_label": difficulty_label,
         **({"model_error": model_error} if model_error else {}),
     }
 
@@ -320,7 +381,11 @@ def handle_chat_round(payload: dict[str, Any]) -> dict[str, Any]:
         session_manager.append_user_message(session_id, message)
 
     persona = session.get("persona", "technical_judge")
-    difficulty = session.get("difficulty", "high")
+    # Use stored normalized profile; fall back to normalizing legacy difficulty field
+    difficulty_profile = session.get("difficulty_profile") or normalize_difficulty(
+        session.get("difficulty", "practice")
+    )
+    difficulty_label = session.get("difficulty_label") or get_label(difficulty_profile)
     startup = session.get("startup", {})
     model_mode = session.get("model_mode", "premium_nvidia")
     next_round = session_manager.increment_round(session_id)
@@ -384,7 +449,7 @@ def handle_chat_round(payload: dict[str, Any]) -> dict[str, Any]:
         messages = _build_followup_messages(
             startup,
             persona,
-            difficulty,
+            difficulty_profile,
             attack_tag,
             recent_history,
             judge_action_result,
@@ -410,12 +475,24 @@ def handle_chat_round(payload: dict[str, Any]) -> dict[str, Any]:
 
     session_manager.append_ai_message(session_id, ai_message, attack_tag)
 
+    # Phase 9.5: persist the new user + judge history entries (last 2 appended above).
+    session_repository.update_round(session_id, session.get("history", [])[-2:])
+
+    input_mode = payload.get("input_mode") or session.get("input_mode", "text")
+    voice_turn_id = payload.get("voice_turn_id", "")
+    if input_mode == "voice" and voice_turn_id and message:
+        voice_handler.confirm_voice_turn(session_id, voice_turn_id, message)
+
+    _phase_chat = get_battle_phase(next_round)
     return {
         "session_id": session_id,
         "round": next_round,
         "pressure_level": pressure_level(next_round),
-        "battle_phase": get_battle_phase(next_round),
+        "battle_phase": _phase_chat,
+        "pressure_label": get_pressure_display_label(difficulty_profile, _phase_chat),
         "attack_tag": attack_tag,
+        "answer_hint": get_answer_checklist(attack_tag),
+        "micro_coach": _micro_coach_tip(message, quality, current_attack_tag, difficulty_profile),
         "ai_message": ai_message,
         "model_mode": used_model_mode,
         "provider": provider,
@@ -436,6 +513,8 @@ def handle_chat_round(payload: dict[str, Any]) -> dict[str, Any]:
             "You have enough material for a scorecard. You can end the battle now or continue practicing."
             if soft_limit else None
         ),
+        "difficulty_profile": difficulty_profile,
+        "difficulty_label": difficulty_label,
         **({"model_error": model_error} if model_error else {}),
     }
 
@@ -469,7 +548,179 @@ def handle_end_battle(payload: dict[str, Any]) -> dict[str, Any]:
             scorecard = mock_scorecard(session)
             scorecard["model_error"] = f"Scorecard generation error: {type(exc).__name__}"
 
+    voice_summary = voice_handler.build_voice_delivery_summary(session)
+    if voice_summary:
+        scorecard["voice_delivery"] = voice_summary
+
+    session["latest_scorecard"] = scorecard
+
+    # Phase 9.5: persist scorecard and battle summary after in-memory mutation.
+    session_repository.save_scorecard(session_id, scorecard)
+    session_repository.update_battle_summary(session_id, {
+        "total_rounds": session.get("round", 0),
+        "final_round": session.get("round", 0),
+        "status": "completed",
+        "battle_complete": True,
+    })
+
+    try:
+        judge_verdict = build_judge_verdict(session, scorecard)
+        session["judge_verdict"] = judge_verdict
+        scorecard["judge_verdict"] = judge_verdict
+        # Phase 9.5: persist judge verdict after it is stored on session.
+        session_repository.save_judge_verdict(session_id, judge_verdict)
+    except Exception as exc:
+        logger.warning("handle_end_battle: judge verdict failed: %s", exc)
+
     return scorecard
+
+
+def handle_start_deal_phase(payload: dict[str, Any]) -> dict[str, Any]:
+    """Start integrated deal phase from pitch session."""
+    session_id = str(payload.get("session_id", "")).strip()
+    if not session_id:
+        return {"error": "session_id is required"}
+
+    session = session_manager.get_session(session_id)
+    if not session:
+        return {"error": "Session not found"}
+
+    try:
+        result = start_deal_phase(session)
+        # Phase 9.5: persist the opening judge deal message after deal_history is populated.
+        if isinstance(result, dict) and "error" not in result:
+            deal_history = session.get("deal_history", [])
+            if deal_history:
+                session_repository.update_deal_round(session_id, deal_history[-1])
+        return result
+    except Exception as exc:
+        logger.warning("handle_start_deal_phase raised: %s", exc)
+        return {"error": "Could not start deal phase."}
+
+
+def handle_deal_round(payload: dict[str, Any]) -> dict[str, Any]:
+    """Process one deal negotiation round."""
+    session_id = str(payload.get("session_id", "")).strip()
+    message = str(payload.get("user_message", "")).strip()
+    input_mode = str(payload.get("input_mode", "text") or "text")
+    voice_turn_id = str(payload.get("voice_turn_id", "") or "")
+
+    if not session_id:
+        return {"error": "session_id is required"}
+
+    session = session_manager.get_session(session_id)
+    if not session:
+        return {"error": "Session not found"}
+
+    if input_mode == "voice" and voice_turn_id and message:
+        voice_handler.confirm_voice_turn(session_id, voice_turn_id, message)
+
+    try:
+        result = next_deal_round(session, message, input_mode=input_mode, voice_turn_id=voice_turn_id)
+        # Phase 9.5: persist the new founder + judge deal entries (last 2 appended above).
+        if isinstance(result, dict) and "error" not in result:
+            deal_history = session.get("deal_history", [])
+            new_entries = deal_history[-2:] if len(deal_history) >= 2 else deal_history
+            if new_entries:
+                session_repository.update_deal_round(session_id, new_entries)
+        return result
+    except Exception as exc:
+        logger.warning("handle_deal_round raised: %s", exc)
+        return {"error": "Could not process deal round."}
+
+
+def handle_end_deal(payload: dict[str, Any]) -> dict[str, Any]:
+    """End deal phase and return deal + combined scorecards."""
+    session_id = str(payload.get("session_id", "")).strip()
+    if not session_id:
+        return {"error": "session_id is required"}
+
+    session = session_manager.get_session(session_id)
+    if not session:
+        return {"error": "Session not found"}
+
+    try:
+        result = generate_deal_scorecard(session)
+        # Phase 9.5: persist deal scorecard + combined scorecard after generation.
+        if isinstance(result, dict) and "error" not in result:
+            session_repository.save_deal_scorecard(
+                session_id,
+                result.get("deal_scorecard") or {},
+                result.get("combined_scorecard") or {},
+            )
+        return result
+    except Exception as exc:
+        logger.warning("handle_end_deal raised: %s", exc)
+        return {"error": "Could not generate deal scorecard."}
+
+
+def handle_retry_weakest_start(payload: dict[str, Any]) -> dict[str, Any]:
+    """Start a retry drill from the latest scorecard answer_to_retry."""
+    session_id = str(payload.get("session_id", "")).strip()
+    if not session_id:
+        return {"error": "session_id is required"}
+
+    session = session_manager.get_session(session_id)
+    if not session:
+        return {"error": "Session not found"}
+
+    try:
+        result = retry_handler.start_retry_drill(session)
+        # Phase 9.5: persist the newly created drill after it is stored on session.
+        retry_id = result.get("retry_id") if isinstance(result, dict) else None
+        if retry_id and "error" not in result:
+            drill = session.get("retry_drills", {}).get(retry_id)
+            if drill:
+                session_repository.save_retry_drill(session_id, drill)
+        return result
+    except Exception as exc:
+        logger.warning("handle_retry_weakest_start raised: %s", exc)
+        return {"error": "Could not start retry drill. Try ending a battle first."}
+
+
+def handle_retry_weakest_submit(payload: dict[str, Any]) -> dict[str, Any]:
+    """Evaluate a retry answer against the original weak answer."""
+    session_id = str(payload.get("session_id", "")).strip()
+    retry_id = str(payload.get("retry_id", "")).strip()
+    retry_answer = str(payload.get("retry_answer", "")).strip()
+    input_mode = str(payload.get("input_mode", "text") or "text")
+    voice_turn_id = str(payload.get("voice_turn_id", "") or "")
+
+    if not session_id:
+        return {"error": "session_id is required"}
+    if not retry_id:
+        return {"error": "retry_id is required"}
+
+    session = session_manager.get_session(session_id)
+    if not session:
+        return {"error": "Session not found"}
+
+    if input_mode == "voice" and voice_turn_id and retry_answer:
+        voice_handler.confirm_voice_turn(session_id, voice_turn_id, retry_answer)
+
+    try:
+        result = retry_handler.evaluate_retry_answer(
+            session,
+            retry_id,
+            retry_answer,
+            input_mode=input_mode,
+            voice_turn_id=voice_turn_id,
+        )
+        # Phase 9.5: persist updated drill, scorecard, and refreshed verdict after eval.
+        if isinstance(result, dict) and "error" not in result:
+            drill = session.get("retry_drills", {}).get(retry_id)
+            if drill:
+                session_repository.save_retry_drill(session_id, drill)
+            latest_scorecard = session.get("latest_scorecard")
+            if isinstance(latest_scorecard, dict):
+                session_repository.save_scorecard(session_id, latest_scorecard)
+            latest_verdict = session.get("judge_verdict")
+            if isinstance(latest_verdict, dict):
+                session_repository.save_judge_verdict(session_id, latest_verdict)
+        return result
+    except Exception as exc:
+        logger.warning("handle_retry_weakest_submit raised: %s", exc)
+        return {"error": "Could not evaluate retry answer. Please try again."}
 
 
 def handle_reset_session(payload: dict[str, Any]) -> dict[str, Any]:
@@ -479,15 +730,19 @@ def handle_reset_session(payload: dict[str, Any]) -> dict[str, Any]:
     return {"status": "reset"}
 
 
-def handle_voice_pitch_placeholder(_payload: dict[str, Any] | None = None) -> dict[str, str]:
-    """Reserved endpoint for voice pitch mode."""
-    return {
-        "status": "not_implemented",
-        "message": (
-            "Voice Mode endpoint is reserved and will be connected "
-            "after transcription integration."
-        ),
-    }
+def handle_voice_pitch(payload: dict[str, Any]) -> dict[str, Any]:
+    """Process opening spoken pitch audio via Nemotron Omni."""
+    audio = payload.get("audio") or payload.get("audio_base64") or ""
+    audio_format = payload.get("audio_format", "webm")
+    return voice_handler.process_voice_pitch(str(audio), str(audio_format))
+
+
+def handle_voice_turn(payload: dict[str, Any]) -> dict[str, Any]:
+    """Process one spoken battle answer — returns transcript for confirmation."""
+    session_id = payload.get("session_id", "")
+    audio = payload.get("audio") or payload.get("audio_base64") or ""
+    audio_format = payload.get("audio_format", "webm")
+    return voice_handler.process_voice_turn(session_id, str(audio), str(audio_format))
 
 
 def handle_deal_session_placeholder(_payload: dict[str, Any] | None = None) -> dict[str, str]:

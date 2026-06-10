@@ -6,6 +6,9 @@
   <title>PitchFight AI</title>
   <link rel="icon" href="/frontend/assets/logo.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="/frontend/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
 </head>
 <body>
   <div class="bg-glow"></div>
@@ -13,143 +16,1207 @@
   <div id="error-banner" class="error-banner" hidden role="alert"></div>
 
   <main id="app" class="app">
-    <!-- Landing -->
+    <!-- Landing — Founder Pressure Arena (Pass 1) -->
     <section id="screen-landing" class="screen active">
-      <header class="hero">
-        <img src="/frontend/assets/logo.svg" alt="PitchFight AI logo" class="logo" />
-        <h1>PitchFight AI</h1>
-        <p class="tagline">Your first tough pitch should not be in front of a real judge.</p>
-        <p class="subtitle">A small-model pressure simulator for student founders.</p>
-      </header>
-      <div class="hero-actions">
-        <button id="btn-load-sample" class="btn btn-secondary">Load Demo Startup</button>
-        <button id="btn-go-setup" class="btn btn-primary">Start Pitch Battle</button>
+      <div class="arena-landing">
+        <div class="arena-scene" aria-hidden="true">
+          <div class="arena-scene-base"></div>
+          <div class="hero-center-haze"></div>
+          <div class="spotlight-core"></div>
+          <div class="hero-spotlight-particles"></div>
+          <div class="spotlight-beam"></div>
+          <div class="arena-floor"></div>
+          <div class="pressure-line"></div>
+          <div class="arena-glow arena-glow-founder"></div>
+          <div class="arena-glow arena-glow-judge"></div>
+
+          <div class="founder-silhouette">
+            <div class="founder-aura"></div>
+            <svg class="character-svg character-svg-founder" viewBox="0 0 140 230" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <defs>
+                <linearGradient id="founder-skin" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#c9954a"/>
+                  <stop offset="100%" stop-color="#3d2810"/>
+                </linearGradient>
+                <linearGradient id="founder-suit" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#5a4020"/>
+                  <stop offset="100%" stop-color="#120c06"/>
+                </linearGradient>
+                <linearGradient id="gold-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#f4d35e" stop-opacity="0.9"/>
+                  <stop offset="100%" stop-color="#a67c1a" stop-opacity="0.4"/>
+                </linearGradient>
+                <filter id="founder-soft-glow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="3" result="blur"/>
+                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+              </defs>
+              <!-- Podium platform -->
+              <ellipse cx="70" cy="206" rx="58" ry="6" fill="rgba(244,211,94,0.08)"/>
+              <rect x="14" y="198" width="112" height="16" rx="3" fill="#1a1208" stroke="#f4d35e" stroke-opacity="0.45"/>
+              <rect x="20" y="190" width="100" height="10" rx="2" fill="#2a1e0c" stroke="#f4d35e" stroke-opacity="0.28"/>
+              <rect x="26" y="184" width="88" height="8" rx="1" fill="#1f160a" stroke="#f4d35e" stroke-opacity="0.15"/>
+              <!-- Traction glow ring -->
+              <ellipse cx="70" cy="188" rx="48" ry="4" fill="none" stroke="#f4d35e" stroke-opacity="0.2" stroke-width="1"/>
+              <!-- Money bag (the ask) -->
+              <g class="prop-money-bag" filter="url(#founder-soft-glow)">
+                <path d="M8 185 Q8 168 22 162 Q28 158 28 150 L32 150 Q32 158 38 162 Q52 168 52 185 Q52 198 30 198 Q8 198 8 185Z" fill="#2a2210" stroke="#f4d35e" stroke-opacity="0.55"/>
+                <path d="M22 150 Q30 146 38 150" fill="none" stroke="#f4d35e" stroke-opacity="0.45" stroke-width="2"/>
+                <text x="30" y="182" text-anchor="middle" fill="#f4d35e" font-size="14" font-weight="700" opacity="0.85">$</text>
+              </g>
+              <!-- Legs -->
+              <path d="M46 168 L42 192 L56 192 L52 168 Z" fill="#0e0a06"/>
+              <path d="M88 168 L84 192 L98 192 L94 168 Z" fill="#0e0a06"/>
+              <!-- Torso / jacket -->
+              <path d="M40 92 Q70 84 100 92 L106 168 Q70 176 34 168 Z" fill="url(#founder-suit)"/>
+              <path d="M40 92 Q70 84 100 92 L98 108 Q70 112 42 108 Z" fill="#f4d35e" fill-opacity="0.06"/>
+              <path d="M56 92 L84 92 L82 168 L58 168 Z" fill="#f4d35e" fill-opacity="0.1"/>
+              <!-- Lapels -->
+              <path d="M56 92 L62 108 L58 168 L52 108 Z" fill="#2a1e0c" fill-opacity="0.6"/>
+              <path d="M84 92 L78 108 L82 168 L88 108 Z" fill="#2a1e0c" fill-opacity="0.6"/>
+              <!-- Shirt collar -->
+              <path d="M56 92 L70 92 L66 110 L62 110 Z" fill="#1a1510"/>
+              <path d="M70 92 L84 92 L82 110 L74 110 Z" fill="#1a1510"/>
+              <!-- Head -->
+              <ellipse cx="70" cy="70" rx="24" ry="27" fill="url(#founder-skin)"/>
+              <path d="M52 78 Q70 88 88 78" fill="none" stroke="#3d2810" stroke-opacity="0.35" stroke-width="1"/>
+              <!-- Hair -->
+              <path d="M46 66 Q70 44 94 66 Q90 54 70 50 Q50 54 46 66Z" fill="#1a1008"/>
+              <path d="M48 62 Q70 48 92 62" fill="none" stroke="#f4d35e" stroke-opacity="0.12" stroke-width="2"/>
+              <!-- Pitch deck / tablet -->
+              <g class="prop-pitch-deck">
+                <rect x="88" y="108" width="36" height="48" rx="3" fill="#1a1510" stroke="#f4d35e" stroke-opacity="0.6" transform="rotate(8 106 132)"/>
+                <line x1="94" y1="120" x2="118" y2="122" stroke="#f4d35e" stroke-opacity="0.4" stroke-width="2" transform="rotate(8 106 132)"/>
+                <line x1="94" y1="130" x2="114" y2="132" stroke="#f4d35e" stroke-opacity="0.3" stroke-width="2" transform="rotate(8 106 132)"/>
+                <line x1="94" y1="140" x2="116" y2="142" stroke="#f4d35e" stroke-opacity="0.25" stroke-width="2" transform="rotate(8 106 132)"/>
+              </g>
+              <!-- Presenting arm -->
+              <path d="M100 92 Q122 98 128 118 Q130 130 120 134 Q108 128 102 112 Q98 102 100 92Z" fill="url(#founder-skin)"/>
+              <!-- Other arm -->
+              <path d="M40 92 Q24 106 22 128 Q20 140 30 138 Q38 132 42 114 Q44 102 40 92Z" fill="url(#founder-suit)"/>
+            </svg>
+            <div class="arena-artifacts arena-artifacts-founder" aria-hidden="true">
+              <span class="artifact artifact-pitch-card"></span>
+              <span class="artifact artifact-deck-tile"></span>
+              <span class="artifact artifact-traction-graph"></span>
+            </div>
+            <span class="character-shadow character-shadow-founder"></span>
+            <span class="character-label character-label-founder">Founder</span>
+          </div>
+
+          <div class="judge-silhouette">
+            <div class="judge-aura"></div>
+            <svg class="character-svg character-svg-judge" viewBox="0 0 150 240" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <defs>
+                <linearGradient id="judge-metal" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#1a3040"/>
+                  <stop offset="100%" stop-color="#060a10"/>
+                </linearGradient>
+                <linearGradient id="visor-glow" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#4ecdc4" stop-opacity="0.2"/>
+                  <stop offset="50%" stop-color="#7efff0" stop-opacity="1"/>
+                  <stop offset="100%" stop-color="#4ecdc4" stop-opacity="0.2"/>
+                </linearGradient>
+                <linearGradient id="cash-green" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#3d8a62"/>
+                  <stop offset="100%" stop-color="#1a4030"/>
+                </linearGradient>
+                <filter id="judge-cyan-glow" x="-30%" y="-30%" width="160%" height="160%">
+                  <feGaussianBlur stdDeviation="2.5" result="blur"/>
+                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+              </defs>
+              <!-- Platform -->
+              <ellipse cx="75" cy="216" rx="62" ry="6" fill="rgba(78,205,196,0.1)"/>
+              <rect x="16" y="206" width="118" height="16" rx="3" fill="#0a1420" stroke="#4ecdc4" stroke-opacity="0.45"/>
+              <rect x="22" y="198" width="106" height="10" rx="2" fill="#0e1824" stroke="#4ecdc4" stroke-opacity="0.25"/>
+              <!-- Cash stack -->
+              <g class="prop-cash-stack">
+                <rect x="6" y="186" width="34" height="8" rx="1" fill="url(#cash-green)" stroke="#4ecdc4" stroke-opacity="0.3"/>
+                <rect x="8" y="178" width="30" height="8" rx="1" fill="url(#cash-green)" stroke="#4ecdc4" stroke-opacity="0.35"/>
+                <rect x="10" y="170" width="26" height="8" rx="1" fill="url(#cash-green)" stroke="#4ecdc4" stroke-opacity="0.4"/>
+                <rect x="14" y="162" width="18" height="8" rx="1" fill="#2a6048" stroke="#f4d35e" stroke-opacity="0.35"/>
+              </g>
+              <!-- Briefcase (capital) -->
+              <g class="prop-briefcase">
+                <rect x="108" y="172" width="38" height="28" rx="3" fill="#0c1018" stroke="#4ecdc4" stroke-opacity="0.5"/>
+                <path d="M118 172 L118 166 Q127 160 136 166 L136 172" fill="none" stroke="#4ecdc4" stroke-opacity="0.55" stroke-width="2"/>
+                <rect x="122" y="182" width="10" height="6" rx="1" fill="#4ecdc4" fill-opacity="0.25"/>
+                <text x="127" y="194" text-anchor="middle" fill="#f4d35e" font-size="11" font-weight="700">$</text>
+              </g>
+              <!-- Legs / base -->
+              <rect x="50" y="176" width="16" height="32" rx="3" fill="#060a10" stroke="#4ecdc4" stroke-opacity="0.15"/>
+              <rect x="84" y="176" width="16" height="32" rx="3" fill="#060a10" stroke="#4ecdc4" stroke-opacity="0.15"/>
+              <!-- Body -->
+              <path d="M34 102 Q75 90 116 102 L122 178 Q75 188 28 178 Z" fill="url(#judge-metal)" stroke="#4ecdc4" stroke-opacity="0.3"/>
+              <!-- Shoulder armor -->
+              <path d="M34 102 Q22 108 18 128 L34 118 Z" fill="#122030" stroke="#4ecdc4" stroke-opacity="0.35"/>
+              <path d="M116 102 Q128 108 132 128 L116 118 Z" fill="#122030" stroke="#4ecdc4" stroke-opacity="0.35"/>
+              <!-- Core panel -->
+              <rect x="54" y="124" width="42" height="44" rx="3" fill="#060a10" stroke="#4ecdc4" stroke-opacity="0.4"/>
+              <line x1="54" y1="146" x2="96" y2="146" stroke="#4ecdc4" stroke-opacity="0.25"/>
+              <line x1="75" y1="124" x2="75" y2="168" stroke="#4ecdc4" stroke-opacity="0.25"/>
+              <!-- Score bars on panel -->
+              <rect x="60" y="152" width="8" height="12" rx="1" fill="#4ecdc4" fill-opacity="0.35"/>
+              <rect x="72" y="146" width="8" height="18" rx="1" fill="#4ecdc4" fill-opacity="0.55"/>
+              <rect x="84" y="138" width="8" height="26" rx="1" fill="#7efff0" fill-opacity="0.7"/>
+              <!-- Neck -->
+              <rect x="64" y="94" width="22" height="14" rx="3" fill="#0a1018" stroke="#4ecdc4" stroke-opacity="0.25"/>
+              <!-- Head -->
+              <rect x="44" y="48" width="62" height="52" rx="8" fill="#0a1420" stroke="#4ecdc4" stroke-opacity="0.5"/>
+              <rect x="48" y="52" width="54" height="8" rx="2" fill="#4ecdc4" fill-opacity="0.08"/>
+              <!-- Visor -->
+              <rect class="judge-visor-svg" x="48" y="66" width="54" height="12" rx="2" fill="url(#visor-glow)" filter="url(#judge-cyan-glow)"/>
+              <line x1="52" y1="72" x2="98" y2="72" stroke="#7efff0" stroke-opacity="0.35" stroke-width="1"/>
+              <!-- Antenna array -->
+              <line x1="75" y1="48" x2="75" y2="38" stroke="#4ecdc4" stroke-opacity="0.7" stroke-width="2"/>
+              <circle cx="75" cy="36" r="3.5" fill="#4ecdc4" class="judge-sensor-svg"/>
+              <line x1="58" y1="52" x2="52" y2="44" stroke="#4ecdc4" stroke-opacity="0.45" stroke-width="1.5"/>
+              <line x1="92" y1="52" x2="98" y2="44" stroke="#4ecdc4" stroke-opacity="0.45" stroke-width="1.5"/>
+              <!-- Side sensors -->
+              <circle cx="50" cy="60" r="3" fill="#4ecdc4" fill-opacity="0.75" class="judge-sensor-svg"/>
+              <circle cx="100" cy="60" r="3" fill="#4ecdc4" fill-opacity="0.75" class="judge-sensor-svg"/>
+            </svg>
+            <div class="arena-artifacts arena-artifacts-judge" aria-hidden="true">
+              <span class="artifact artifact-score-tile"><span class="artifact-score-num">72</span></span>
+              <span class="artifact artifact-scanner"></span>
+              <span class="artifact artifact-deal-chip">DEAL</span>
+            </div>
+            <span class="character-shadow character-shadow-judge"></span>
+            <span class="character-label character-label-judge">AI Judge</span>
+          </div>
+
+          <div class="arena-dust"></div>
+          <div class="arena-pressure-scan"></div>
+          <div class="arena-scanline"></div>
+        </div>
+
+        <div class="arena-landing-content">
+          <p class="arena-eyebrow">AI Founder Pressure Arena</p>
+
+          <div class="arena-logo-wrap">
+            <img src="/frontend/assets/logo.svg" alt="PitchFight AI logo" class="logo arena-logo" />
+          </div>
+
+          <h1 class="arena-title">PitchFight AI</h1>
+
+          <div class="arena-hook" id="landing-typewriter" aria-live="polite">
+            <p class="arena-hook-line" id="landing-type-line-1">
+              <span class="arena-type-text" data-text="Your pitch is ready."></span>
+              <span class="arena-cursor" aria-hidden="true"></span>
+            </p>
+            <p class="arena-hook-line arena-hook-line-accent" id="landing-type-line-2">
+              <span class="arena-type-text" data-text="Now survive the questions."></span>
+            </p>
+          </div>
+
+          <p class="arena-support">
+            Train against an AI judge, defend your startup under pressure, and leave with a scorecard that shows exactly what to fix.
+          </p>
+
+          <div class="hero-actions arena-cta-row" id="landing-cta-row">
+            <button id="btn-go-setup" class="btn btn-primary btn-arena-primary" type="button">Enter the Arena</button>
+            <button id="btn-load-sample" class="btn btn-secondary btn-arena-secondary" type="button">Load Demo Founder</button>
+          </div>
+
+          <div class="arena-feature-chips" id="landing-feature-chips" aria-label="Features">
+            <span class="arena-chip">Pitch Battle</span>
+            <span class="arena-chip">Voice Mode</span>
+            <span class="arena-chip">Retry Weakest</span>
+            <span class="arena-chip">Deal Phase</span>
+          </div>
+
+          <footer class="arena-landing-footer">
+            <p class="arena-trust-badge">Powered by NVIDIA Nemotron</p>
+            <p class="arena-footer-line">Built for student founders before the real room.</p>
+          </footer>
+        </div>
+      </div>
+    </section>
+
+    <!-- Start method -->
+    <section id="screen-start-method" class="screen">
+      <div class="panel glass">
+        <div class="panel-header">
+          <h2>How do you want to start?</h2>
+          <button id="btn-start-back-landing" class="btn btn-ghost">Back</button>
+        </div>
+        <div class="start-method-grid">
+          <button id="btn-start-text" class="start-method-card selected" type="button">
+            <span class="start-method-icon">✎</span>
+            <h3>Fill Details</h3>
+            <p>Type your startup context manually.</p>
+          </button>
+          <button id="btn-start-voice" class="start-method-card" type="button">
+            <span class="start-method-icon voice-icon">🎙</span>
+            <h3>Pitch First</h3>
+            <p>Speak a 60–90 second pitch and let AI extract the details.</p>
+          </button>
+        </div>
+        <button id="btn-continue-start" class="btn btn-primary btn-wide">Continue</button>
+      </div>
+    </section>
+
+    <!-- Voice pitch recording -->
+    <section id="screen-voice-pitch" class="screen">
+      <div class="panel glass voice-panel">
+        <div class="panel-header">
+          <h2>Record Your Opening Pitch</h2>
+          <button id="btn-voice-pitch-back" class="btn btn-ghost">Back</button>
+        </div>
+        <div class="voice-guidance glass-inner">
+          <p>Try to mention: <strong>startup name</strong>, problem, users, solution, why AI, traction, competitors, ask.</p>
+          <p class="voice-hint">Aim for 60–90 seconds. Tap the mic to start, tap again to stop.</p>
+        </div>
+        <div class="voice-recorder">
+          <button id="btn-voice-pitch-record" class="voice-mic-btn" type="button" aria-label="Record pitch">
+            <span class="mic-ring"></span>
+            <span class="mic-icon">🎙</span>
+          </button>
+          <p id="voice-pitch-timer" class="voice-timer">0:00</p>
+          <p id="voice-pitch-status" class="voice-status"></p>
+          <button id="btn-voice-pitch-cancel" class="btn btn-ghost btn-sm" type="button">Cancel</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Voice pitch confirmation -->
+    <section id="screen-voice-confirm" class="screen">
+      <div class="panel glass voice-panel">
+        <div class="panel-header">
+          <h2>Here's what we understood</h2>
+        </div>
+        <p id="voice-confidence-warning" class="voice-low-confidence" hidden>Low extraction confidence — please review and edit fields carefully.</p>
+        <div class="voice-transcript-card glass-inner">
+          <h3>Transcript</h3>
+          <p id="voice-confirm-transcript" class="voice-transcript-text"></p>
+          <p id="voice-confirm-delivery" class="voice-delivery-note"></p>
+          <span id="voice-confirm-confidence" class="delivery-chip"></span>
+        </div>
+        <form id="voice-extract-form" class="startup-form voice-extract-form">
+          <label>Name<input name="name" type="text" /></label>
+          <label>Problem<textarea name="problem" rows="2"></textarea></label>
+          <label>Target Users<input name="target_users" type="text" /></label>
+          <label>Solution<textarea name="solution" rows="2"></textarea></label>
+          <label>Why AI<textarea name="why_ai" rows="2"></textarea></label>
+          <label>Competitors<input name="competitors" type="text" /></label>
+          <label>Traction<input name="traction" type="text" /></label>
+          <label>Ask<input name="ask" type="text" /></label>
+        </form>
+        <div class="voice-confirm-actions">
+          <button id="btn-voice-edit-manual" class="btn btn-secondary" type="button">Edit manually</button>
+          <button id="btn-voice-looks-right" class="btn btn-primary" type="button">Looks right → Continue</button>
+        </div>
       </div>
     </section>
 
     <!-- Setup -->
     <section id="screen-setup" class="screen">
-      <div class="panel glass">
-        <div class="panel-header">
-          <h2>Startup Context</h2>
+      <div class="briefing-shell">
+        <header class="briefing-header">
+          <div>
+            <p class="results-eyebrow">Pre-Fight Briefing</p>
+            <h2 class="briefing-title">Founder Briefing</h2>
+            <p class="briefing-subtitle">Give the AI judge enough context to attack your pitch properly.</p>
+            <p class="briefing-helper">Sharper inputs create tougher questions.</p>
+          </div>
           <button id="btn-back-landing" class="btn btn-ghost">Back</button>
-        </div>
-        <form id="startup-form" class="startup-form">
-          <label>Name<input name="name" type="text" placeholder="EventRadar AI" required /></label>
-          <label>Problem<textarea name="problem" rows="2" required></textarea></label>
-          <label>Target Users<input name="target_users" type="text" required /></label>
-          <label>Solution<textarea name="solution" rows="2" required></textarea></label>
-          <label>Why AI<textarea name="why_ai" rows="2" required></textarea></label>
-          <label>Competitors<input name="competitors" type="text" required /></label>
-          <label>Traction<input name="traction" type="text" required /></label>
-          <label>Ask<input name="ask" type="text" required /></label>
-        </form>
-      </div>
+        </header>
 
-      <div class="panel glass">
-        <h2>Choose Your Opponent</h2>
-        <div class="persona-grid">
-          <button class="persona-card" data-persona="skeptical_vc">
-            <span class="persona-icon">💼</span>
-            <h3>Skeptical VC</h3>
-            <p>Market, moat, revenue, defensibility</p>
-          </button>
-          <button class="persona-card" data-persona="technical_judge">
-            <span class="persona-icon">🛠️</span>
-            <h3>Technical Judge</h3>
-            <p>AI necessity, architecture, feasibility</p>
-          </button>
-          <button class="persona-card selected" data-persona="hackathon_judge">
-            <span class="persona-icon">🏆</span>
-            <h3>Hackathon Judge</h3>
-            <p>Novelty, demo clarity, MVP strength</p>
-          </button>
+        <div class="briefing-grid">
+          <div class="panel glass briefing-panel">
+            <h3 class="briefing-section-title">Startup Identity</h3>
+            <form id="startup-form" class="startup-form briefing-form">
+              <div class="briefing-group">
+                <label>Name<input name="name" type="text" placeholder="EventRadar AI" required /></label>
+              </div>
+              <div class="briefing-group briefing-group-problem">
+                <h4 class="briefing-group-label">Problem + Users</h4>
+                <label>Problem<textarea name="problem" rows="2" required placeholder="What pain are you solving?"></textarea></label>
+                <label>Target Users<input name="target_users" type="text" required placeholder="Who feels this pain most?" /></label>
+              </div>
+              <div class="briefing-group briefing-group-solution">
+                <h4 class="briefing-group-label">Solution + Why AI</h4>
+                <label>Solution<textarea name="solution" rows="2" required placeholder="What do you build?"></textarea></label>
+                <label>Why AI<textarea name="why_ai" rows="2" required placeholder="Why AI instead of rules or manual work?"></textarea></label>
+              </div>
+              <div class="briefing-group briefing-group-traction">
+                <h4 class="briefing-group-label">Traction + Competitors</h4>
+                <label>Competitors<input name="competitors" type="text" required placeholder="Who else solves this?" /></label>
+                <label>Traction<input name="traction" type="text" required placeholder="Users, pilots, revenue, demos…" /></label>
+              </div>
+              <div class="briefing-group briefing-group-ask">
+                <h4 class="briefing-group-label">Ask / Desired Outcome</h4>
+                <label>Ask<input name="ask" type="text" required placeholder="Funding, pilot, mentorship, sponsorship…" /></label>
+              </div>
+            </form>
+          </div>
+
+          <div class="panel glass briefing-panel briefing-opponent-panel">
+            <h3 class="briefing-section-title">Choose Your Opponent</h3>
+            <div class="persona-grid">
+              <button class="persona-card" type="button" data-persona="skeptical_vc">
+                <span class="persona-icon">💼</span>
+                <h3>Skeptical VC</h3>
+                <p>Market, moat, revenue, defensibility</p>
+              </button>
+              <button class="persona-card" type="button" data-persona="technical_judge">
+                <span class="persona-icon">🛠️</span>
+                <h3>Technical Judge</h3>
+                <p>AI necessity, architecture, feasibility</p>
+              </button>
+              <button class="persona-card selected" type="button" data-persona="hackathon_judge">
+                <span class="persona-icon">🏆</span>
+                <h3>Hackathon Judge</h3>
+                <p>Novelty, demo clarity, MVP strength</p>
+              </button>
+            </div>
+            <div class="difficulty-selector">
+              <h3>Difficulty Mode</h3>
+              <div class="difficulty-grid">
+                <button class="difficulty-card selected" type="button" data-difficulty="practice">
+                  <span class="difficulty-icon">🎓</span>
+                  <h4>Practice Mode</h4>
+                  <p>Student-friendly, clear questions, confidence-building</p>
+                </button>
+                <button class="difficulty-card" type="button" data-difficulty="judge">
+                  <span class="difficulty-icon">⚖️</span>
+                  <h4>Judge Mode</h4>
+                  <p>Balanced hackathon judge, sharper, demo-focused</p>
+                </button>
+                <button class="difficulty-card" type="button" data-difficulty="investor">
+                  <span class="difficulty-icon">💰</span>
+                  <h4>Investor Mode</h4>
+                  <p>Skeptical VC pressure — market, moat, and traction</p>
+                </button>
+              </div>
+            </div>
+            <button id="btn-start-battle" class="btn btn-primary btn-wide btn-arena-start" type="button">Start Pitch Battle</button>
+          </div>
         </div>
-        <button id="btn-start-battle" class="btn btn-primary btn-wide">Enter the Arena</button>
       </div>
     </section>
 
-    <!-- Battle -->
-    <section id="screen-battle" class="screen">
-      <div class="battle-layout">
-        <aside class="battle-meta glass">
-          <h2>Battle Arena</h2>
-          <div class="meta-item"><span>Round</span><strong id="round-counter">1</strong></div>
-          <div class="meta-item"><span>Pressure</span><strong id="pressure-level" class="pressure-high">High</strong></div>
-          <div class="meta-item"><span>Phase</span><strong id="battle-phase" hidden>explore</strong></div>
-          <div class="meta-item"><span>Attack Tag</span><strong id="attack-tag">—</strong></div>
-          <button id="btn-end-battle" class="btn btn-danger btn-wide">End Battle</button>
-          <button id="btn-back-scorecard" class="btn btn-ghost btn-wide" hidden>Back to Scorecard</button>
-        </aside>
+    <!-- Battle — Pass 3B Duel Stage -->
+    <section id="screen-battle" class="screen screen-arena">
+      <div class="battle-arena-wrap">
+        <div class="battle-arena-scene" aria-hidden="true">
+          <div class="battle-arena-glow battle-arena-glow-left"></div>
+          <div class="battle-arena-glow battle-arena-glow-right"></div>
+          <div class="battle-arena-spotlight"></div>
+          <div class="battle-arena-floor"></div>
+          <div class="arena-energy-lines"></div>
+          <div class="arena-particles"></div>
+        </div>
 
-        <div class="battle-chat glass">
-          <div id="chat-window" class="chat-window" aria-live="polite"></div>
-          <form id="chat-form" class="chat-input-row">
-            <textarea id="user-input" rows="2" placeholder="Defend your startup under pressure..."></textarea>
-            <button id="btn-send" type="submit" class="btn btn-primary">Send</button>
-          </form>
-          <p id="battle-status" class="status-text" hidden></p>
+        <div class="battle-stage-shell arcade-shell">
+          <div class="arcade-grid-bg" aria-hidden="true"></div>
+          <div class="arcade-scanlines" aria-hidden="true"></div>
+
+          <header class="arcade-hud" aria-label="Battle status">
+            <div class="hud-cell hud-cell-round">
+              <span class="hud-cell-label">Round</span>
+              <span class="hud-cell-value hud-font" id="round-display">01</span>
+            </div>
+            <div class="hud-cell">
+              <span class="hud-cell-label">Opponent</span>
+              <span class="hud-cell-value hud-font-sm" id="sidebar-persona-name">AI Judge</span>
+            </div>
+            <div class="hud-cell">
+              <span class="hud-cell-label">Attack</span>
+              <span class="hud-cell-value hud-accent-cyan" id="attack-tag">—</span>
+            </div>
+            <div class="hud-cell">
+              <span class="hud-cell-label">Mode</span>
+              <span class="hud-cell-value" id="mode-chip">Practice</span>
+            </div>
+            <div class="hud-cell hud-cell-meter">
+              <span class="hud-cell-label">Confidence</span>
+              <div class="arcade-meter" aria-label="Confidence meter">
+                <div id="confidence-meter-fill" class="arcade-meter-fill confidence-fill"></div>
+              </div>
+            </div>
+            <div class="hud-cell hud-cell-combo">
+              <span class="hud-cell-label">Combo</span>
+              <div class="combo-meter" id="combo-meter" aria-label="Answer momentum">
+                <span class="combo-pip" data-pip="1"></span>
+                <span class="combo-pip" data-pip="2"></span>
+                <span class="combo-pip" data-pip="3"></span>
+                <span class="combo-pip" data-pip="4"></span>
+                <span class="combo-pip" data-pip="5"></span>
+              </div>
+            </div>
+            <div class="hud-cell hud-cell-actions">
+              <button id="btn-end-battle" class="btn btn-arcade-end btn-arcade-end-lg" type="button">End Battle</button>
+              <button id="btn-back-scorecard" class="btn btn-arcade-back" type="button" hidden>Back to Scorecard</button>
+            </div>
+            <span id="round-counter" hidden></span>
+            <span id="attack-tag-chip" hidden></span>
+            <span id="pressure-chip" hidden></span>
+            <span id="battle-phase" hidden></span>
+            <span id="difficulty-label" hidden></span>
+            <span id="sidebar-persona-mode" hidden></span>
+            <span id="pressure-level" hidden></span>
+            <span class="pressure-meter pressure-meter-hud" hidden aria-hidden="true">
+              <span class="pressure-meter-track"><span id="pressure-meter-fill" class="pressure-meter-fill pressure-warmup"></span></span>
+            </span>
+            <span id="battle-progress-fill" class="battle-progress-fill pressure-warmup" hidden aria-hidden="true"></span>
+          </header>
+
+          <nav class="battle-progress-strip arcade-progress" aria-label="Battle progression">
+            <div class="progress-strip-rounds" id="battle-progress-rounds">
+              <span class="progress-node" data-round="1"><span class="progress-node-dot"></span>R1</span>
+              <span class="progress-connector" aria-hidden="true"></span>
+              <span class="progress-node" data-round="2"><span class="progress-node-dot"></span>R2</span>
+              <span class="progress-connector" aria-hidden="true"></span>
+              <span class="progress-node" data-round="3"><span class="progress-node-dot"></span>R3</span>
+              <span class="progress-connector" aria-hidden="true"></span>
+              <span class="progress-node" data-round="4"><span class="progress-node-dot"></span>R4</span>
+              <span class="progress-connector" aria-hidden="true"></span>
+              <span class="progress-node" data-round="5"><span class="progress-node-dot"></span>R5</span>
+            </div>
+            <div class="progress-strip-attacks" id="battle-progress-attacks" aria-label="Attack progression">
+              <span class="progress-attack-tag" data-attack="User Pain">User Pain</span>
+              <span class="progress-attack-tag" data-attack="Novelty">Novelty</span>
+              <span class="progress-attack-tag" data-attack="MVP Strength">MVP</span>
+              <span class="progress-attack-tag" data-attack="Business Model">Model</span>
+              <span class="progress-attack-tag" data-attack="Objection Handling">Objections</span>
+            </div>
+          </nav>
+
+          <div class="arcade-duel-frame">
+            <div class="fighter-row">
+              <div class="fighter-panel fighter-founder">
+                <div class="fighter-avatar-wrap">
+                  <svg class="holo-avatar holo-founder" viewBox="0 0 64 88" aria-hidden="true">
+                    <defs>
+                      <linearGradient id="holo-f-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f4d35e"/><stop offset="100%" stop-color="#8a6520"/></linearGradient>
+                    </defs>
+                    <ellipse cx="32" cy="80" rx="22" ry="3" fill="rgba(244,211,94,0.2)"/>
+                    <path d="M18 38 Q32 30 46 38 L48 62 Q32 68 16 62 Z" fill="#1a1208" stroke="url(#holo-f-gold)" stroke-width="1.2"/>
+                    <circle cx="32" cy="24" r="11" fill="#3d2810" stroke="#f4d35e" stroke-width="1"/>
+                    <rect x="38" y="42" width="12" height="16" rx="1.5" fill="#0e0c08" stroke="#f4d35e" stroke-opacity="0.6" transform="rotate(8 44 50)"/>
+                    <path d="M14 38 L8 48 M50 38 L56 46" stroke="#f4d35e" stroke-opacity="0.35" stroke-width="1"/>
+                  </svg>
+                  <span class="fighter-avatar-glow founder-glow"></span>
+                </div>
+                <div class="fighter-label-box">
+                  <span class="fighter-tag">You</span>
+                  <span class="fighter-name">Founder</span>
+                </div>
+                <ul class="signal-stats founder-signals" id="founder-signal-chips">
+                  <li><span>Traction</span><strong>—</strong></li>
+                  <li><span>Market</span><strong>Live</strong></li>
+                  <li><span>Moat</span><strong>Building</strong></li>
+                </ul>
+              </div>
+
+              <div class="duel-node">
+                <div class="duel-node-badge hud-font">
+                  <span id="round-counter-duel">01</span>
+                </div>
+                <span class="duel-node-vs hud-font">VS</span>
+                <span id="duel-pressure-label" class="duel-node-pressure">Warm-up</span>
+                <div class="duel-node-ring" aria-hidden="true"></div>
+              </div>
+
+              <div class="fighter-panel fighter-judge">
+                <div class="fighter-avatar-wrap">
+                  <svg class="holo-avatar holo-judge" viewBox="0 0 64 88" aria-hidden="true">
+                    <defs>
+                      <linearGradient id="holo-j-cyan" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#4ecdc4"/><stop offset="100%" stop-color="#7efff0"/></linearGradient>
+                    </defs>
+                    <ellipse cx="32" cy="80" rx="22" ry="3" fill="rgba(78,205,196,0.15)"/>
+                    <path d="M16 40 Q32 32 48 40 L50 64 Q32 70 14 64 Z" fill="#0a1420" stroke="#4ecdc4" stroke-width="1.2"/>
+                    <rect x="20" y="18" width="24" height="20" rx="4" fill="#060a10" stroke="#4ecdc4" stroke-width="1"/>
+                    <rect x="24" y="26" width="16" height="4" rx="1" fill="url(#holo-j-cyan)"/>
+                    <rect x="24" y="44" width="16" height="14" rx="1" fill="#060a10" stroke="#4ecdc4" stroke-opacity="0.5"/>
+                    <rect x="26" y="50" width="3" height="6" fill="#4ecdc4" fill-opacity="0.5"/>
+                    <rect x="30.5" y="47" width="3" height="9" fill="#7efff0" fill-opacity="0.65"/>
+                    <rect x="35" y="45" width="3" height="11" fill="#4ecdc4"/>
+                  </svg>
+                  <span class="fighter-avatar-glow judge-glow"></span>
+                </div>
+                <div class="fighter-label-box judge-label-box">
+                  <span class="fighter-tag">Judge</span>
+                  <span class="fighter-name" id="judge-fighter-name">AI Judge</span>
+                </div>
+                <ul class="signal-stats judge-signals" id="judge-signal-chips">
+                  <li><span>Style</span><strong id="judge-stat-style">Socratic</strong></li>
+                  <li><span>Focus</span><strong id="judge-stat-focus">—</strong></li>
+                  <li><span>Pressure</span><strong id="judge-stat-pressure">Warm-up</strong></li>
+                </ul>
+              </div>
+            </div>
+
+            <article id="judge-live-card" class="attack-card-arena">
+              <div class="attack-card-banner hud-font">&gt;&gt; ATTACK &lt;&lt;</div>
+              <div class="attack-card-inner">
+                <span id="judge-attack-pill" class="judge-attack-pill attack-card-tag">—</span>
+                <span id="judge-question-meta" class="judge-attack-meta" hidden></span>
+                <blockquote id="judge-question-text" class="judge-question-text attack-card-question">AI judge is preparing the next attack…</blockquote>
+              </div>
+              <div class="attack-card-glow" aria-hidden="true"></div>
+              <div class="judge-card-scan" aria-hidden="true"></div>
+            </article>
+          </div>
+
+          <p id="founder-coach-hint" hidden aria-hidden="true"></p>
+          <p id="micro-coach" class="micro-coach" hidden aria-hidden="true"></p>
+          <p id="answer-hint" class="answer-hint" hidden aria-hidden="true"></p>
+
+          <div class="battle-log-ribbon arcade-log-bar" id="battle-log-ribbon" hidden aria-hidden="true">
+            <span class="battle-log-label hud-font">Battle Log</span>
+            <div class="battle-log-tabs" id="battle-log-tabs" role="tablist"></div>
+            <div class="battle-log-detail" id="battle-log-detail" hidden></div>
+          </div>
+
+          <div id="battle-readiness-prompt" class="battle-readiness-prompt arena-readiness-prompt" hidden>
+            <p id="battle-readiness-text">Enough signal collected. Ready for your scorecard?</p>
+            <div class="battle-readiness-actions">
+              <button id="btn-battle-readiness-end" class="btn btn-primary btn-sm" type="button">End Battle Now</button>
+              <button id="btn-battle-readiness-continue" class="btn btn-ghost btn-sm" type="button">Continue One More Round</button>
+            </div>
+          </div>
+
+          <details id="battle-history" hidden aria-hidden="true"></details>
+
+          <footer class="response-dock arcade-dock unified-dock">
+            <div class="dock-unified-header">
+              <div class="dock-header-main">
+                <p class="response-dock-label hud-font">Your Move</p>
+                <p id="dock-assist-hint" class="dock-assist-hint">Tip: use numbers</p>
+              </div>
+              <button id="btn-open-battle-rounds" class="btn btn-arcade-log-inline previous-rounds-toggle" type="button" hidden>
+                View Battle Log <span id="timeline-count" class="timeline-count"></span>
+              </button>
+            </div>
+
+            <div id="voice-turn-preview" class="voice-turn-preview voice-console-preview" hidden>
+              <h4>Voice transcript</h4>
+              <div class="voice-wave-decor voice-wave-active" aria-hidden="true"></div>
+              <textarea id="voice-turn-transcript" rows="3" placeholder="Edit transcript before sending…"></textarea>
+              <p id="voice-turn-delivery" class="voice-delivery-note"></p>
+              <div class="voice-turn-actions">
+                <button id="btn-voice-turn-send" class="btn btn-primary btn-sm" type="button">Send Voice Answer</button>
+                <button id="btn-voice-turn-cancel" class="btn btn-ghost btn-sm" type="button">Discard</button>
+              </div>
+            </div>
+
+            <form id="chat-form" class="response-dock-form arcade-dock-form">
+              <textarea id="user-input" rows="3" placeholder="Type your defense here…"></textarea>
+              <div class="response-action-row arcade-action-row">
+                <div class="response-action-left">
+                  <button id="btn-voice-turn-record" class="btn btn-arcade-voice" type="button" aria-label="Voice mode — record answer">
+                    <span class="arcade-voice-ring" aria-hidden="true"></span>
+                    <svg class="arcade-voice-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/>
+                    </svg>
+                    <span class="arcade-voice-label">Voice Mode</span>
+                  </button>
+                  <span id="voice-turn-timer" class="voice-timer voice-timer-inline hud-font">0:00</span>
+                  <span id="voice-turn-status" class="voice-status"></span>
+                  <div class="dock-hint-chips hint-chips" aria-label="Answer hints">
+                    <button type="button" class="hint-chip" data-hint="We measured ">Proof</button>
+                    <button type="button" class="hint-chip" data-hint="Our users ">User</button>
+                    <button type="button" class="hint-chip" data-hint="Traction: ">Traction</button>
+                  </div>
+                </div>
+                <button id="btn-send" type="submit" class="btn btn-arcade-send">Send &gt;&gt;</button>
+              </div>
+            </form>
+            <p id="battle-status" class="status-text battle-status-msg" hidden></p>
+          </footer>
         </div>
       </div>
     </section>
 
     <!-- Scorecard -->
     <section id="screen-scorecard" class="screen">
-      <div class="panel glass scorecard-panel">
-        <header class="scorecard-header">
-          <div class="scorecard-header-left">
-            <h2>Battle Scorecard</h2>
-            <button id="btn-view-conversation" class="btn btn-ghost btn-sm">View Conversation</button>
+      <div class="results-shell results-compact">
+        <article class="results-hero-card glass">
+          <header class="results-hero-header">
+            <div class="results-hero-header-left">
+              <p class="results-eyebrow">Pitch Battle Result</p>
+              <button id="btn-view-conversation" class="btn btn-conversation-review" type="button">View Conversation</button>
+            </div>
+            <p id="scorecard-source-badge" class="source-chip" hidden></p>
+          </header>
+          <p id="scorecard-fallback-warning" class="results-fallback-warn" hidden></p>
+
+          <div class="results-hero-grid">
+            <div class="score-orb-wrap">
+              <div class="score-orb" aria-label="Overall pitch score">
+                <strong id="overall-score" class="score-orb-value">0</strong>
+                <span id="overall-label" class="score-orb-label"></span>
+              </div>
+            </div>
+            <div class="results-hero-center">
+              <p id="pitch-readout" class="result-verdict-text">Your pitch battle is complete.</p>
+              <div class="insight-grid score-triad" id="pitch-stat-chips">
+                <span class="source-chip chip-strong" id="chip-strongest-dim">Strongest: —</span>
+                <span class="source-chip chip-weak" id="chip-weakest-dim">Weakest: —</span>
+                <span class="source-chip chip-source" id="chip-score-source" hidden>Nemotron Judge</span>
+              </div>
+            </div>
           </div>
-          <div class="overall-score">
-            <span>Overall</span>
-            <strong id="overall-score">0</strong>
-            <span id="overall-label" hidden style="font-size:0.85rem;color:var(--gold);display:block;margin-top:0.2rem"></span>
+
+          <div class="result-next-action result-next-action-compact" id="pitch-next-action" hidden>
+            <span class="result-next-action-label">Next</span>
+            <p id="pitch-next-action-text" class="result-next-action-text"></p>
           </div>
-          <p id="scorecard-source-badge" hidden style="font-size:0.8rem;opacity:0.7;margin:0"></p>
-        </header>
 
-        <div id="score-bars" class="score-bars"></div>
+          <div class="scorecard-actions results-hero-actions results-hero-actions-compact">
+            <button id="btn-path-to-80" class="btn btn-path80" type="button">View Path to 80+</button>
+            <button id="btn-reset" class="btn btn-primary" type="button">New Battle</button>
+            <button id="btn-back-setup" class="btn btn-secondary" type="button">Edit Startup</button>
+          </div>
+        </article>
 
-        <p id="signals-summary" class="signals-summary" hidden></p>
+        <article id="judge-verdict-hero" class="judge-verdict-hero glass" hidden>
+          <p class="results-eyebrow">Judge Verdict</p>
+          <div id="judge-verdict-section" class="judge-verdict-panel">
+            <article id="judge-verdict-card" class="judge-verdict-card glass-inner">
+              <div class="judge-verdict-head">
+                <span id="verdict-persona-badge" class="verdict-persona-badge result-verdict-badge"></span>
+                <span id="verdict-interest-badge" class="verdict-interest-badge"></span>
+              </div>
+              <blockquote id="verdict-reaction" class="verdict-reaction verdict-reaction-compact"></blockquote>
+              <div class="verdict-meta-grid verdict-meta-compact">
+                <div><span>Deal Type</span><strong id="verdict-deal-type"></strong></div>
+                <div><span>Why</span><strong id="verdict-why" class="clamp-text clamp-short"></strong></div>
+              </div>
+              <p id="verdict-opening-offer" class="verdict-opening-offer" hidden></p>
+              <div id="verdict-actions" class="verdict-actions"></div>
+            </article>
+          </div>
+        </article>
 
-        <div class="feedback-grid">
-          <article class="feedback-card highlight">
-            <h3>Improved Answer</h3>
-            <p id="improved-answer"></p>
-          </article>
-          <article class="feedback-card highlight">
-            <h3>Improved Pitch</h3>
-            <p id="improved-pitch"></p>
-          </article>
-          <article class="feedback-card">
-            <h3>Best Answer</h3>
-            <p id="best-answer"></p>
-          </article>
-          <article class="feedback-card">
-            <h3>Weakest Answer</h3>
-            <p id="weakest-answer"></p>
-          </article>
+        <nav class="result-tabs" id="pitch-result-tabs" role="tablist" aria-label="Pitch scorecard sections">
+          <button type="button" class="result-tab active" role="tab" aria-selected="true" data-tab="overview">Overview</button>
+          <button type="button" class="result-tab" role="tab" aria-selected="false" data-tab="dimensions">Dimensions</button>
+          <button type="button" class="result-tab" role="tab" aria-selected="false" data-tab="coaching">Coaching</button>
+          <button type="button" class="result-tab" role="tab" aria-selected="false" data-tab="voice" id="tab-voice-delivery" hidden>Voice Delivery</button>
+        </nav>
+
+        <div class="result-panels" id="pitch-result-panels">
+          <section class="result-panel active" data-panel="overview" role="tabpanel">
+            <div class="answer-compare overview-answers overview-answers-compact">
+              <article class="feedback-card answer-card answer-best coaching-card">
+                <div class="feedback-card-head">
+                  <span class="answer-badge answer-badge-best">Strongest Answer</span>
+                  <span id="best-answer-round" class="round-badge" hidden></span>
+                </div>
+                <blockquote id="best-answer" class="answer-quote clamp-text clamp-short"></blockquote>
+              </article>
+              <article class="feedback-card answer-card answer-weak coaching-card">
+                <div class="feedback-card-head">
+                  <span class="answer-badge answer-badge-weak">Weakest Answer</span>
+                  <span id="weakest-answer-round" class="round-badge" hidden></span>
+                </div>
+                <blockquote id="weakest-answer" class="answer-quote answer-quote-weak clamp-text clamp-short"></blockquote>
+                <p id="why-weak" class="why-weak-note clamp-text clamp-short" hidden></p>
+              </article>
+            </div>
+            <div id="signals-summary" class="insight-grid signals-chips signals-chips-compact" hidden></div>
+          </section>
+
+          <section class="result-panel" data-panel="dimensions" role="tabpanel" hidden>
+            <div id="score-bars" class="dimension-list"></div>
+          </section>
+
+          <section class="result-panel" data-panel="coaching" role="tabpanel" hidden>
+            <div class="feedback-grid coaching-grid">
+              <article class="feedback-card highlight coaching-card">
+                <div class="feedback-card-head">
+                  <span class="feedback-icon" aria-hidden="true">✦</span>
+                  <h3>Improved Answer</h3>
+                </div>
+                <p id="improved-answer" class="feedback-body clamp-text"></p>
+              </article>
+              <article class="feedback-card highlight coaching-card">
+                <div class="feedback-card-head">
+                  <span class="feedback-icon" aria-hidden="true">◎</span>
+                  <h3>Improved Pitch</h3>
+                </div>
+                <p id="improved-pitch" class="feedback-body clamp-text"></p>
+              </article>
+            </div>
+            <div class="coaching-card prep-questions">
+              <h3 class="scorecard-section-title">Top 3 Prep Questions</h3>
+              <ol id="top-questions" class="prep-list prep-checklist"></ol>
+            </div>
+          </section>
+
+          <section class="result-panel" data-panel="voice" role="tabpanel" hidden>
+            <div id="voice-delivery-section" class="voice-delivery-panel">
+              <p class="scorecard-section-desc">Observable delivery cues from your spoken answers.</p>
+              <div id="voice-delivery-content" class="voice-delivery-grid"></div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <!-- Deal Arena — Pass 3B Duel Stage -->
+    <section id="screen-deal" class="screen screen-arena">
+      <div class="battle-arena-wrap deal-arena-wrap">
+        <div class="battle-arena-scene deal-arena-scene" aria-hidden="true">
+          <div class="battle-arena-glow battle-arena-glow-left"></div>
+          <div class="battle-arena-glow battle-arena-glow-right deal-glow-right"></div>
+          <div class="battle-arena-spotlight deal-spotlight"></div>
+          <div class="battle-arena-floor"></div>
+          <div class="arena-energy-lines deal-energy-lines"></div>
         </div>
 
-        <div class="prep-questions">
-          <h3>Top 3 Prep Questions</h3>
-          <ol id="top-questions"></ol>
-        </div>
+        <div class="battle-stage-shell deal-stage-shell arcade-shell deal-arcade-shell">
+          <div class="arcade-grid-bg" aria-hidden="true"></div>
+          <div class="arcade-scanlines" aria-hidden="true"></div>
+          <header class="battle-hud deal-hud glass" aria-label="Deal status">
+            <div class="battle-hud-main">
+              <span class="hud-round">DEAL <span id="deal-round-display">01</span></span>
+              <span class="hud-sep" aria-hidden="true"></span>
+              <span class="hud-opponent" id="deal-persona-name">—</span>
+              <span class="hud-meta">Type: <strong id="deal-type-label">—</strong></span>
+              <span class="hud-meta">Focus: <strong id="deal-negotiation-tag">—</strong></span>
+              <span class="hud-mode deal-hud-chip" id="deal-type-chip">—</span>
+            </div>
+            <div class="battle-hud-actions">
+              <button id="btn-open-deal-rounds" class="btn btn-ghost btn-sm previous-rounds-toggle" type="button" hidden>
+                Full Log <span id="deal-timeline-count" class="timeline-count"></span>
+              </button>
+              <button id="btn-end-deal" class="btn btn-danger btn-sm" type="button">End Deal</button>
+              <button id="btn-deal-back-scorecard" class="btn btn-ghost btn-sm" type="button">Back to Pitch Scorecard</button>
+            </div>
+            <span id="deal-round-counter" hidden></span>
+            <span id="deal-focus-chip" hidden></span>
+          </header>
 
-        <div class="scorecard-actions">
-          <button id="btn-reset" class="btn btn-secondary">New Battle</button>
-          <button id="btn-back-setup" class="btn btn-primary">Edit Startup</button>
+          <nav class="battle-progress-strip deal-progress-strip glass" aria-label="Deal progression">
+            <div class="progress-strip-rounds" id="deal-progress-rounds">
+              <span class="progress-node" data-round="1"><span class="progress-node-dot"></span>R1</span>
+              <span class="progress-connector" aria-hidden="true"></span>
+              <span class="progress-node" data-round="2"><span class="progress-node-dot"></span>R2</span>
+              <span class="progress-connector" aria-hidden="true"></span>
+              <span class="progress-node" data-round="3"><span class="progress-node-dot"></span>R3</span>
+              <span class="progress-connector" aria-hidden="true"></span>
+              <span class="progress-node" data-round="4"><span class="progress-node-dot"></span>R4</span>
+            </div>
+          </nav>
+
+          <div class="battle-log-ribbon glass deal-log-ribbon" id="deal-log-ribbon" hidden>
+            <span class="battle-log-label">Negotiation Log</span>
+            <div class="battle-log-tabs" id="deal-log-tabs" role="tablist"></div>
+            <div class="battle-log-detail" id="deal-log-detail" hidden></div>
+          </div>
+
+          <div class="duel-stage duel-stage-arena deal-duel-stage">
+            <div class="duel-stage-beam duel-beam-founder" aria-hidden="true"></div>
+            <div class="duel-stage-beam duel-beam-judge deal-beam" aria-hidden="true"></div>
+
+            <aside class="duel-founder-card glass deal-founder-card">
+              <div class="duel-card-inner">
+                <div class="duel-character duel-character-founder deal-character" aria-hidden="true">
+                  <svg class="duel-svg duel-svg-founder" viewBox="0 0 80 120" xmlns="http://www.w3.org/2000/svg">
+                    <ellipse cx="40" cy="112" rx="28" ry="4" fill="rgba(74,222,128,0.12)"/>
+                    <path d="M24 52 Q40 44 56 52 L60 88 Q40 94 20 88 Z" fill="#1a3028" stroke="#4ade80" stroke-opacity="0.3"/>
+                    <ellipse cx="40" cy="36" rx="14" ry="16" fill="#c9954a"/>
+                    <rect x="48" y="58" width="18" height="24" rx="2" fill="#1a1510" stroke="#4ade80" stroke-opacity="0.45" transform="rotate(6 57 70)"/>
+                  </svg>
+                  <span class="duel-char-glow duel-char-glow-deal"></span>
+                </div>
+                <div class="duel-founder-body">
+                  <p class="duel-side-label">Your Terms</p>
+                  <dl class="deal-terms-mini">
+                    <div><dt>Opening Offer</dt><dd id="deal-opening-offer">—</dd></div>
+                    <div><dt>Your Ask</dt><dd id="deal-your-ask">—</dd></div>
+                  </dl>
+                  <p class="founder-coach-single">Counter with evidence, leverage, and clarity.</p>
+                </div>
+              </div>
+            </aside>
+
+            <div class="duel-core deal-core">
+              <div class="duel-pressure-ring deal-pressure-ring pressure-core-live">
+                <span class="duel-core-pulse" aria-hidden="true"></span>
+                <span class="duel-vs">VS</span>
+                <span class="duel-core-round">D<span id="deal-round-counter-duel">1</span></span>
+              </div>
+            </div>
+
+            <article id="deal-judge-card" class="duel-judge-card judge-attack-card deal-judge-card glass">
+              <div class="judge-attack-glow deal-attack-glow" aria-hidden="true"></div>
+              <div class="duel-card-inner judge-card-inner">
+                <div class="duel-character duel-character-judge" aria-hidden="true">
+                  <svg class="duel-svg duel-svg-judge" viewBox="0 0 80 120" xmlns="http://www.w3.org/2000/svg">
+                    <ellipse cx="40" cy="112" rx="28" ry="4" fill="rgba(74,222,128,0.1)"/>
+                    <path d="M22 54 Q40 46 58 54 L62 90 Q40 96 18 90 Z" fill="#0a2018" stroke="#4ade80" stroke-opacity="0.35"/>
+                    <rect x="26" y="28" width="28" height="26" rx="5" fill="#0a1420" stroke="#4ade80" stroke-opacity="0.5"/>
+                    <rect x="30" y="38" width="20" height="6" rx="1" fill="#4ade80" fill-opacity="0.6"/>
+                    <rect x="28" y="58" width="24" height="28" rx="2" fill="#060a10" stroke="#4ade80" stroke-opacity="0.35"/>
+                  </svg>
+                  <span class="duel-char-glow duel-char-glow-judge deal-glow"></span>
+                </div>
+                <div class="judge-attack-body">
+                  <div class="judge-card-head">
+                    <span class="judge-badge">AI Judge</span>
+                    <span id="deal-judge-attack-pill" class="judge-attack-pill deal-pill">—</span>
+                  </div>
+                  <span id="deal-judge-meta" class="judge-attack-meta" hidden></span>
+                  <blockquote id="deal-judge-text" class="judge-question-text judge-question-quote">Preparing deal terms…</blockquote>
+                </div>
+              </div>
+              <div class="judge-card-scan deal-scan" aria-hidden="true"></div>
+            </article>
+          </div>
+
+          <div id="deal-readiness-prompt" class="deal-readiness-prompt arena-readiness-prompt" hidden>
+            <p id="deal-readiness-text">You have enough negotiation signal for a scorecard.</p>
+            <div class="deal-readiness-actions">
+              <button id="btn-deal-readiness-end" class="btn btn-primary btn-sm" type="button">End Deal Now</button>
+              <button id="btn-deal-readiness-continue" class="btn btn-ghost btn-sm" type="button">Continue One More Round</button>
+            </div>
+          </div>
+
+          <div id="deal-rounds-drawer" class="previous-rounds-drawer" hidden>
+            <button type="button" class="previous-rounds-backdrop" id="btn-close-deal-rounds" aria-label="Close previous rounds"></button>
+            <div class="previous-rounds-panel glass" role="dialog" aria-labelledby="deal-rounds-title">
+              <header class="previous-rounds-header">
+                <h3 id="deal-rounds-title">Previous Rounds</h3>
+                <button type="button" class="btn btn-ghost btn-sm" id="btn-close-deal-rounds-x">Close</button>
+              </header>
+              <div id="deal-chat-window" class="chat-window battle-timeline deal-timeline previous-rounds-timeline" aria-live="polite"></div>
+            </div>
+          </div>
+          <details id="deal-history" hidden aria-hidden="true"></details>
+
+          <footer class="response-dock glass deal-response-dock response-dock-move">
+            <div class="response-dock-header">
+              <p class="response-dock-label">Your Counter</p>
+              <p class="dock-assist-hint">Anchor on evidence. Concede with leverage.</p>
+            </div>
+
+            <div id="deal-voice-preview" class="voice-turn-preview voice-console-preview" hidden>
+              <h4>Voice transcript</h4>
+              <div class="voice-wave-decor voice-wave-active" aria-hidden="true"></div>
+              <textarea id="deal-voice-transcript" rows="3" placeholder="Edit transcript before sending…"></textarea>
+              <div class="voice-turn-actions">
+                <button id="btn-deal-voice-send" class="btn btn-primary btn-sm" type="button">Send Counter</button>
+                <button id="btn-deal-voice-cancel" class="btn btn-ghost btn-sm" type="button">Discard</button>
+              </div>
+            </div>
+
+            <form id="deal-form" class="response-dock-form">
+              <textarea id="deal-input" rows="4" placeholder="Defend your terms with evidence and leverage…"></textarea>
+              <div class="response-action-row">
+                <div class="response-action-left">
+                  <button id="btn-deal-voice-record" class="voice-mic-btn voice-mic-btn-sm voice-pill" type="button" aria-label="Record counter">
+                    <span class="mic-ring"></span>
+                    <span class="mic-icon">🎙</span>
+                  </button>
+                  <span class="input-tab-label">Voice</span>
+                  <span id="deal-voice-timer" class="voice-timer voice-timer-inline">0:00</span>
+                  <span id="deal-voice-status" class="voice-status"></span>
+                </div>
+                <button id="btn-deal-send" type="submit" class="btn btn-deal-send btn-send-answer">Send Counter</button>
+              </div>
+            </form>
+            <p id="deal-status" class="status-text battle-status-msg" hidden></p>
+          </footer>
+        </div>
+      </div>
+    </section>
+
+    <!-- Deal + Combined Scorecard -->
+    <section id="screen-deal-scorecard" class="screen">
+      <div class="results-shell">
+        <article class="results-hero-card glass">
+          <header class="results-hero-header">
+            <p class="results-eyebrow">Combined Founder Readout</p>
+            <p id="deal-scorecard-meta" class="source-chip" hidden></p>
+          </header>
+
+          <div class="score-triad combined-score-triad">
+            <div class="combined-score-item">
+              <span>Pitch</span>
+              <strong id="combined-pitch">0</strong>
+            </div>
+            <div class="combined-score-item">
+              <span>Deal</span>
+              <strong id="combined-deal">0</strong>
+            </div>
+            <div class="combined-score-item combined-highlight">
+              <span>Combined</span>
+              <strong id="combined-overall">0</strong>
+            </div>
+          </div>
+
+          <p id="combined-profile" class="result-verdict-text combined-profile"></p>
+          <p id="combined-summary" class="combined-summary clamp-text"></p>
+
+          <div class="result-next-action">
+            <span class="result-next-action-label">Next Best Action</span>
+            <p id="combined-next-action" class="result-next-action-text"></p>
+          </div>
+
+          <div class="deal-outcome-row results-hero-meta">
+            <span id="deal-outcome-badge" class="deal-outcome-badge result-verdict-badge"></span>
+            <span id="deal-overall-label" class="deal-overall-label"></span>
+          </div>
+
+          <div class="scorecard-actions results-hero-actions">
+            <button id="btn-deal-view-pitch-scorecard" class="btn btn-secondary" type="button">View Pitch Breakdown</button>
+            <button id="btn-deal-view-negotiation" class="btn btn-secondary" type="button">View Negotiation Conversation</button>
+            <button id="btn-deal-new-battle" class="btn btn-primary" type="button">New Battle</button>
+          </div>
+        </article>
+
+        <nav class="result-tabs" id="deal-result-tabs" role="tablist" aria-label="Deal scorecard sections">
+          <button type="button" class="result-tab active" role="tab" aria-selected="true" data-tab="deal-summary">Combined Summary</button>
+          <button type="button" class="result-tab" role="tab" aria-selected="false" data-tab="pitch-vs-deal">Pitch vs Deal</button>
+          <button type="button" class="result-tab" role="tab" aria-selected="false" data-tab="deal-dimensions">Deal Dimensions</button>
+          <button type="button" class="result-tab" role="tab" aria-selected="false" data-tab="deal-highlights">Highlights</button>
+          <button type="button" class="result-tab" role="tab" aria-selected="false" data-tab="deal-coaching">Coaching</button>
+        </nav>
+
+        <div class="result-panels" id="deal-result-panels">
+          <section class="result-panel active" data-panel="deal-summary" role="tabpanel">
+            <div class="coaching-card">
+              <h3 class="scorecard-section-title">Session Snapshot</h3>
+              <p class="scorecard-section-desc">Your final founder profile after pitch + deal.</p>
+              <p id="deal-summary-weakest" class="deal-weakest-line"></p>
+            </div>
+          </section>
+
+          <section class="result-panel" data-panel="pitch-vs-deal" role="tabpanel" hidden>
+            <div class="score-triad combined-score-triad compact-triad">
+              <div class="combined-score-item"><span>Pitch</span><strong id="combined-pitch-tab">0</strong></div>
+              <div class="combined-score-item"><span>Deal</span><strong id="combined-deal-tab">0</strong></div>
+              <div class="combined-score-item combined-highlight"><span>Combined</span><strong id="combined-overall-tab">0</strong></div>
+            </div>
+            <p id="combined-profile-tab" class="combined-profile"></p>
+          </section>
+
+          <section class="result-panel" data-panel="deal-dimensions" role="tabpanel" hidden>
+            <div id="deal-score-bars" class="dimension-list"></div>
+          </section>
+
+          <section class="result-panel" data-panel="deal-highlights" role="tabpanel" hidden>
+            <div class="feedback-grid coaching-grid">
+              <article class="feedback-card coaching-card"><h3>Best Move</h3><p id="deal-best-move" class="clamp-text"></p></article>
+              <article class="feedback-card coaching-card answer-weak"><h3>Weakest Move</h3><p id="deal-weakest-move" class="clamp-text"></p></article>
+            </div>
+          </section>
+
+          <section class="result-panel" data-panel="deal-coaching" role="tabpanel" hidden>
+            <article class="feedback-card highlight coaching-card">
+              <h3>Improved Response</h3>
+              <p id="deal-improved-response" class="clamp-text"></p>
+            </article>
+            <div class="coaching-card">
+              <h3 class="scorecard-section-title">Top 3 Prep Points</h3>
+              <ol id="deal-prep-points" class="prep-list prep-checklist"></ol>
+            </div>
+          </section>
         </div>
       </div>
     </section>
   </main>
 
-  <div id="loading-overlay" class="loading-overlay" hidden>
-    <div class="spinner"></div>
-    <p>Loading...</p>
+  <!-- Battle log — body-level so arena overflow does not clip the modal -->
+  <div id="battle-rounds-drawer" class="previous-rounds-drawer conversation-split-drawer" hidden>
+    <button type="button" class="previous-rounds-backdrop" id="btn-close-battle-rounds" aria-label="Close battle log"></button>
+    <div class="conversation-split-panel glass" role="dialog" aria-labelledby="battle-rounds-title">
+      <header class="conversation-split-header">
+        <h3 id="battle-rounds-title">Battle Log</h3>
+        <button type="button" class="btn btn-ghost btn-sm" id="btn-close-battle-rounds-x">Close</button>
+      </header>
+      <div class="conversation-split-body">
+        <aside id="conversation-sidebar" class="conversation-sidebar" aria-label="Battle details"></aside>
+        <div class="conversation-thread-wrap">
+          <p class="conversation-thread-hint" aria-hidden="true">Scroll for full history ↓</p>
+          <div id="chat-window" class="chat-window conversation-thread" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Negotiation Conversation Overlay -->
+  <div id="negotiation-overlay" class="negotiation-overlay conversation-modal" hidden aria-modal="true" role="dialog" aria-label="Negotiation Conversation">
+    <div class="negotiation-panel glass results-modal-panel">
+      <div class="negotiation-header">
+        <div>
+          <p class="results-eyebrow">Deal Phase</p>
+          <h2>Negotiation Conversation</h2>
+        </div>
+        <button id="btn-close-negotiation" class="btn btn-ghost btn-sm" type="button">✕ Close</button>
+      </div>
+      <div id="negotiation-transcript" class="negotiation-transcript conversation-timeline"></div>
+      <div class="negotiation-footer">
+        <button id="btn-negotiation-back" class="btn btn-secondary btn-sm" type="button">Back to Deal Scorecard</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Coaching Roadmap Overlay -->
+  <div id="path80-overlay" class="path80-overlay conversation-modal" hidden aria-modal="true" role="dialog" aria-label="Path to 80+">
+    <div class="path80-panel glass results-modal-panel">
+      <div class="path80-header">
+        <div>
+          <p class="results-eyebrow path80-eyebrow">Coaching Roadmap</p>
+          <h2 class="path80-title">Path to 80+</h2>
+          <p class="path80-subtitle">What stopped this pitch from becoming investor-ready.</p>
+        </div>
+        <button id="btn-close-path80" class="btn btn-ghost btn-sm" aria-label="Close">✕ Close</button>
+      </div>
+
+      <div class="path80-score-bar results-score-lift">
+        <div class="path80-score-item">
+          <span class="path80-score-label">Current Score</span>
+          <strong id="p80-current-score" class="path80-score-num">—</strong>
+        </div>
+        <div class="path80-arrow">→</div>
+        <div class="path80-score-item">
+          <span class="path80-score-label">Potential Score</span>
+          <strong id="p80-estimated-score" class="path80-score-num path80-score-green">—</strong>
+        </div>
+        <p id="p80-estimate-reason" class="path80-estimate-reason clamp-text"></p>
+      </div>
+
+      <div class="path80-sections insight-grid path80-sections-compact">
+        <div class="path80-card coaching-card path80-card-compact">
+          <h3 class="path80-card-title">Why You Scored This</h3>
+          <p id="p80-why-scored" class="path80-card-body clamp-text clamp-short"></p>
+        </div>
+
+        <div class="path80-card path80-card-alert coaching-card path80-card-compact">
+          <h3 class="path80-card-title">What Stopped 80+</h3>
+          <p id="p80-what-stopped" class="path80-card-body clamp-text clamp-short"></p>
+        </div>
+
+        <div class="path80-card path80-card-retry coaching-card path80-card-retry-compact">
+          <h3 class="path80-card-title">One Answer to Retry</h3>
+          <div class="path80-retry-meta">
+            <span id="p80-retry-dim" class="path80-dim-badge source-chip"></span>
+            <span id="p80-retry-round" class="path80-round-tag source-chip"></span>
+          </div>
+          <div class="path80-retry-grid">
+            <div>
+              <p class="path80-answer-label">Original Answer</p>
+              <blockquote id="p80-original-answer" class="path80-quote path80-quote-weak quote-chip clamp-text clamp-short"></blockquote>
+            </div>
+            <div>
+              <p class="path80-answer-label">How to Fix It</p>
+              <p id="p80-retry-advice" class="path80-card-body clamp-text clamp-short"></p>
+            </div>
+          </div>
+          <details class="path80-sample-details">
+            <summary>Sample stronger answer</summary>
+            <blockquote id="p80-sample-answer" class="path80-quote path80-quote-strong quote-chip"></blockquote>
+          </details>
+          <p id="p80-why-it-hurt" class="path80-card-body path80-muted clamp-text clamp-short path80-why-hurt"></p>
+        </div>
+      </div>
+
+      <div class="path80-footer">
+        <button id="btn-retry-question" class="btn btn-retry-start" type="button">Retry This Question</button>
+        <button id="btn-close-path80-bottom" class="btn btn-secondary" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Retry Weakest Question Drill -->
+  <div id="retry-overlay" class="retry-overlay conversation-modal" hidden aria-modal="true" role="dialog" aria-label="Retry Weakest Question">
+    <div class="retry-panel glass results-modal-panel retry-drill-panel">
+      <div class="retry-header">
+        <div>
+          <p class="results-eyebrow">Training Drill</p>
+          <h2 class="retry-title">Rematch Drill</h2>
+          <p class="retry-subtitle">Practice the answer that held your score back.</p>
+        </div>
+        <button id="btn-close-retry" class="btn btn-ghost btn-sm" aria-label="Close">✕ Close</button>
+      </div>
+
+      <div id="retry-drill-view" class="retry-drill-view">
+        <div class="retry-cards insight-grid">
+          <article class="retry-card coaching-card">
+            <h3>Original Question</h3>
+            <p id="retry-original-question" class="retry-card-body clamp-text"></p>
+          </article>
+          <article class="retry-card retry-card-weak coaching-card">
+            <h3>Your Previous Answer</h3>
+            <blockquote id="retry-original-answer" class="retry-quote quote-chip clamp-text"></blockquote>
+          </article>
+          <article class="retry-card coaching-card">
+            <h3>Why It Hurt</h3>
+            <p id="retry-why-hurt" class="retry-card-body clamp-text"></p>
+          </article>
+          <article class="retry-card retry-card-tip coaching-card">
+            <h3>Sample Stronger Direction</h3>
+            <blockquote id="retry-sample" class="retry-quote retry-quote-strong quote-chip clamp-text"></blockquote>
+          </article>
+        </div>
+
+        <div class="retry-answer-area coaching-card">
+          <label class="retry-input-label" for="retry-answer-input">Your retry answer</label>
+          <div class="retry-input-row">
+            <button id="btn-retry-voice-record" class="voice-mic-btn voice-mic-btn-sm" type="button" aria-label="Record retry answer">
+              <span class="mic-ring"></span>
+              <span class="mic-icon">🎙</span>
+            </button>
+            <span id="retry-voice-timer" class="voice-timer voice-timer-inline">0:00</span>
+            <span id="retry-voice-status" class="voice-status"></span>
+          </div>
+          <textarea id="retry-answer-input" rows="3" placeholder="Give a stronger answer with a specific fact, number, or example…"></textarea>
+          <div id="retry-voice-preview" class="retry-voice-preview" hidden>
+            <p class="retry-input-label">Voice transcript — edit before submitting</p>
+            <textarea id="retry-voice-transcript" rows="2"></textarea>
+          </div>
+          <button id="btn-submit-retry" class="btn btn-retry-submit" type="button">Submit Retry Answer</button>
+        </div>
+      </div>
+
+      <div id="retry-result-view" class="retry-result-view" hidden>
+        <h3 class="retry-result-title">Rematch Drill Result</h3>
+        <div class="retry-vs-grid">
+          <article class="retry-card retry-card-weak coaching-card">
+            <h4>Old Answer</h4>
+            <p id="retry-result-old" class="retry-card-body clamp-text"></p>
+          </article>
+          <article class="retry-card retry-card-strong coaching-card">
+            <h4>New Answer</h4>
+            <p id="retry-result-new" class="retry-card-body clamp-text"></p>
+          </article>
+        </div>
+        <div class="retry-feedback-grid insight-grid">
+          <article class="retry-card coaching-card"><h4>What improved</h4><p id="retry-what-improved" class="clamp-text"></p></article>
+          <article class="retry-card coaching-card"><h4>Still missing</h4><p id="retry-still-missing" class="clamp-text"></p></article>
+          <article class="retry-card coaching-card"><h4>Specific tip</h4><p id="retry-specific-tip" class="clamp-text"></p></article>
+        </div>
+        <div class="retry-estimate-bar results-score-lift">
+          <span id="retry-dim-estimate" class="retry-dim-estimate"></span>
+          <span id="retry-overall-lift" class="retry-overall-lift"></span>
+          <span id="retry-verdict-badge" class="retry-verdict-badge result-verdict-badge"></span>
+        </div>
+        <p id="retry-next-prompt" class="retry-next-prompt clamp-text"></p>
+        <div class="retry-result-actions scorecard-actions">
+          <button id="btn-retry-again" class="btn btn-retry-start" type="button">Retry Again</button>
+          <button id="btn-retry-back-scorecard" class="btn btn-secondary" type="button">Back to Scorecard</button>
+          <button id="btn-retry-new-battle" class="btn btn-primary" type="button">New Battle</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="loading-overlay" class="loading-overlay arena-loading" hidden>
+    <div class="arena-loading-panel">
+      <div class="spinner"></div>
+      <div class="arena-loading-scan" aria-hidden="true"></div>
+      <p id="loading-message">Loading…</p>
+    </div>
   </div>
 
   <script type="module" src="/frontend/script.js"></script>
+  <!-- voice.js imported by script.js -->
 </body>
 </html>

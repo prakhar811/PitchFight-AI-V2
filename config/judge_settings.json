@@ -1,0 +1,126 @@
+{
+  "default_profile": "practice",
+  "profiles": {
+    "practice": {
+      "label": "Practice Mode",
+      "description": "Student-friendly pitch practice for first/second-time founders.",
+      "profile_display": {
+        "pressure_labels": {
+          "explore": "Warm-up",
+          "pressure": "Focused",
+          "close": "Final Practice"
+        }
+      },
+      "question_style": {
+        "plain_language": true,
+        "avoid_jargon": true,
+        "avoid_compound_questions": true,
+        "one_question_only": true,
+        "max_sentences": 3,
+        "tone": "challenging_but_supportive",
+        "instruction": "This founder is practicing for the first or second time. Ask ONE clear, short question using plain everyday language. Do NOT use terms like: unit economics, contribution margin, defensibility, TAM, SAM, SOM, moat, CAC, LTV, load-bearing mechanism, demonstrably, quantify match accuracy, precision threshold, or any benchmark jargon. Instead ask things like: 'What number proves this is working?', 'How do you know students need this?', 'How will you get your first 100 users?', 'Why would students choose this over existing options?', 'How do you know users will come back?', 'How much will you charge, and who pays?'. Be challenging and ask for evidence — but keep the language a first-time founder can understand without a business degree."
+      },
+      "coaching_style": {
+        "tone": "encouraging_actionable",
+        "instruction": "Be encouraging but honest. Explain what the founder did right, then show exactly how to make the answer stronger with one specific number, example, or proof point.",
+        "example": "Your answer touched on the right idea. Here's how to make it more convincing with one specific number or example."
+      },
+      "battle_phase_tone": {
+        "explore": "medium",
+        "pressure": "medium_high_but_clear",
+        "close": "firm_but_supportive"
+      },
+      "scoring_calibration": {
+        "attempted_answer_floor": 32,
+        "partial_signal_floor": 38,
+        "concrete_signal_floor": 48,
+        "non_answer_max": 22,
+        "startup_context_max": 48,
+        "vague_on_topic_range": [32, 48],
+        "one_concrete_signal_range": [48, 65],
+        "strong_answer_range": [71, 85],
+        "excellent_answer_range": [86, 100]
+      }
+    },
+    "judge": {
+      "label": "Judge Mode",
+      "description": "Balanced hackathon judge simulation.",
+      "profile_display": {
+        "pressure_labels": {
+          "explore": "Moderate",
+          "pressure": "High",
+          "close": "Panel Ready"
+        }
+      },
+      "question_style": {
+        "plain_language": true,
+        "avoid_jargon": true,
+        "avoid_compound_questions": true,
+        "one_question_only": true,
+        "max_sentences": 3,
+        "tone": "realistic_hackathon_judge",
+        "instruction": "Act like a realistic hackathon judge. Be sharp and specific, but keep questions understandable. Ask one clear question at a time and focus on demo strength, novelty, user pain, and feasibility."
+      },
+      "coaching_style": {
+        "tone": "balanced_judge_feedback",
+        "instruction": "Be direct and fair. Highlight what would convince a hackathon judge and what still needs proof before demo time.",
+        "example": "This answer has a useful signal, but a judge still needs to see proof in the demo. Make the claim measurable and show it quickly."
+      },
+      "battle_phase_tone": {
+        "explore": "medium_high",
+        "pressure": "high_but_fair",
+        "close": "firm_judging_panel"
+      },
+      "scoring_calibration": {
+        "attempted_answer_floor": 30,
+        "partial_signal_floor": 38,
+        "concrete_signal_floor": 48,
+        "non_answer_max": 18,
+        "vague_on_topic_range": [30, 42],
+        "one_concrete_signal_range": [48, 60],
+        "strong_answer_range": [70, 85],
+        "excellent_answer_range": [86, 100]
+      }
+    },
+    "investor": {
+      "label": "Investor Mode",
+      "description": "Harder skeptical VC-style pressure.",
+      "profile_display": {
+        "pressure_labels": {
+          "explore": "High",
+          "pressure": "Very High",
+          "close": "Investor Pressure"
+        }
+      },
+      "question_style": {
+        "plain_language": false,
+        "avoid_jargon": false,
+        "avoid_compound_questions": false,
+        "one_question_only": true,
+        "max_sentences": 4,
+        "tone": "skeptical_investor",
+        "instruction": "Act like a skeptical early-stage investor. Pressure-test market size, moat, retention, revenue logic, distribution, and why now. Be tougher than Practice Mode, but still focus on one main pressure point per round."
+      },
+      "coaching_style": {
+        "tone": "sharp_investor_feedback",
+        "instruction": "Be sharper and more business-focused. Explain what would worry an investor and what proof is needed to reduce that concern.",
+        "example": "This answer lacks defensibility. A real investor needs to hear your moat mechanism, not just what the product does."
+      },
+      "battle_phase_tone": {
+        "explore": "high",
+        "pressure": "very_high",
+        "close": "investment_committee"
+      },
+      "scoring_calibration": {
+        "attempted_answer_floor": 25,
+        "partial_signal_floor": 35,
+        "concrete_signal_floor": 45,
+        "non_answer_max": 15,
+        "vague_on_topic_range": [25, 38],
+        "one_concrete_signal_range": [45, 58],
+        "strong_answer_range": [70, 85],
+        "excellent_answer_range": [86, 100]
+      }
+    }
+  }
+}

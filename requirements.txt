@@ -7,3 +7,4 @@ numpy
 openai>=1.0.0
 httpx
 requests
+pymongo[srv]==4.7.2

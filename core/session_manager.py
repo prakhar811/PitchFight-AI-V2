@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import uuid
 from typing import Any
 
@@ -24,6 +25,9 @@ def create_session(
         "input_mode": input_mode,
         "round": 1,
         "history": [],
+        "voice_pitch": None,
+        "pending_voice_turns": {},
+        "confirmed_voice_turns": [],
     }
     SESSIONS[session_id] = session
     return session
@@ -75,3 +79,51 @@ def reset_session(session_id: str) -> bool:
         del SESSIONS[session_id]
         return True
     return False
+
+
+def set_voice_pitch(session_id: str, voice_pitch: dict[str, Any]) -> None:
+    """Store opening voice pitch metadata on session."""
+    session = SESSIONS.get(session_id)
+    if session:
+        session["voice_pitch"] = voice_pitch
+
+
+def store_pending_voice_turn(session_id: str, turn_record: dict[str, Any]) -> None:
+    """Store a pending (unconfirmed) voice turn."""
+    session = SESSIONS.get(session_id)
+    if not session:
+        return
+    pending = session.setdefault("pending_voice_turns", {})
+    vid = turn_record.get("voice_turn_id", "")
+    if vid:
+        pending[vid] = turn_record
+
+
+def confirm_voice_turn(
+    session_id: str,
+    voice_turn_id: str,
+    final_transcript: str,
+) -> bool:
+    """Confirm a pending voice turn and move it to confirmed_voice_turns."""
+    session = SESSIONS.get(session_id)
+    if not session:
+        return False
+    pending = session.get("pending_voice_turns") or {}
+    turn = pending.get(voice_turn_id)
+    if not turn:
+        return False
+    turn = dict(turn)
+    turn["transcript"] = str(final_transcript).strip()
+    turn["confirmed"] = True
+    turn["word_count"] = len(re.findall(r"\b\w+\b", turn["transcript"]))
+    session.setdefault("confirmed_voice_turns", []).append(turn)
+    del pending[voice_turn_id]
+    return True
+
+
+def get_pending_voice_turn(session_id: str, voice_turn_id: str) -> dict[str, Any] | None:
+    """Return a pending voice turn by id."""
+    session = SESSIONS.get(session_id)
+    if not session:
+        return None
+    return (session.get("pending_voice_turns") or {}).get(voice_turn_id)

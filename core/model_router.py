@@ -147,6 +147,167 @@ def generate_scorecard_response(
     )
 
 
+def generate_scoring_response(
+    messages: list[dict[str, str]],
+    model_mode: str | None = None,
+) -> dict[str, Any]:
+    """Route a dimension-scoring-only request (mode=scorecard_scoring).
+
+    Nemotron judges all 6 dimensions from actual Q&A. Returns scores + best/weakest only.
+    Coaching fields (improved_answer, improved_pitch, top_3_questions) are NOT included.
+    """
+    mode = _resolve_mode(model_mode)
+
+    if mode == "premium_nvidia":
+        try:
+            content = nvidia_client.generate_nemotron_response(
+                messages, mode="scorecard_scoring"
+            )
+            return {"ok": True, "model_mode": mode, "provider": "nvidia", "content": content, "error": None}
+        except RuntimeError as exc:
+            logger.warning("NVIDIA scoring call failed: %s", exc)
+            return {"ok": False, "model_mode": mode, "provider": "nvidia", "content": "", "error": str(exc)}
+
+    return _placeholder_result(mode, "mock", f"Scoring via '{mode}' not implemented.")
+
+
+def generate_scoring_repair_response(
+    raw_bad_content: str,
+    model_mode: str | None = None,
+) -> dict[str, Any]:
+    """Repair a broken scoring-only JSON response (mode=scorecard_scoring_repair)."""
+    mode = _resolve_mode(model_mode)
+
+    if mode != "premium_nvidia":
+        return _placeholder_result(mode, "mock", "Scoring repair only for premium_nvidia.")
+
+    repair_messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are a JSON formatter. Convert the input into the exact schema below. "
+                "Return ONLY valid JSON. First character must be { last must be }. "
+                "No markdown. No explanation.\n\n"
+                "REQUIRED SCHEMA:\n"
+                '{"scores":{"clarity":{"score":0,"reason":"","quote":"","signals_used":[]},'
+                '"problem_understanding":{"score":0,"reason":"","quote":"","signals_used":[]},'
+                '"market_awareness":{"score":0,"reason":"","quote":"","signals_used":[]},'
+                '"differentiation":{"score":0,"reason":"","quote":"","signals_used":[]},'
+                '"business_model":{"score":0,"reason":"","quote":"","signals_used":[]},'
+                '"objection_handling":{"score":0,"reason":"","quote":"","signals_used":[]}},'
+                '"best_answer":"","weakest_answer":"","why_weak":""}'
+            ),
+        },
+        {
+            "role": "user",
+            "content": "Convert this text into the JSON schema. Output JSON only:\n\n" + raw_bad_content[:4000],
+        },
+    ]
+
+    try:
+        content = nvidia_client.generate_nemotron_response(repair_messages, mode="scorecard_scoring_repair")
+        return {"ok": True, "model_mode": mode, "provider": "nvidia", "content": content, "error": None}
+    except RuntimeError as exc:
+        logger.warning("NVIDIA scoring repair call failed: %s", exc)
+        return {"ok": False, "model_mode": mode, "provider": "nvidia", "content": "", "error": str(exc)}
+
+
+def generate_full_scorecard_response(
+    messages: list[dict[str, str]],
+    model_mode: str | None = None,
+) -> dict[str, Any]:
+    """Route a full Nemotron scoring request (mode=scorecard_full).
+
+    Nemotron judges all 6 dimensions from the actual Q&A conversation.
+    Returns the full scorecard JSON including scores + coaching + score_explanation.
+    """
+    mode = _resolve_mode(model_mode)
+
+    if mode == "premium_nvidia":
+        try:
+            content = nvidia_client.generate_nemotron_response(
+                messages, mode="scorecard_full"
+            )
+            return {
+                "ok": True,
+                "model_mode": mode,
+                "provider": "nvidia",
+                "content": content,
+                "error": None,
+            }
+        except RuntimeError as exc:
+            logger.warning("NVIDIA full scorecard call failed: %s", exc)
+            return {
+                "ok": False,
+                "model_mode": mode,
+                "provider": "nvidia",
+                "content": "",
+                "error": str(exc),
+            }
+
+    return _placeholder_result(mode, "mock", f"Full scorecard via '{mode}' not implemented.")
+
+
+def generate_full_scorecard_repair_response(
+    raw_bad_content: str,
+    model_mode: str | None = None,
+) -> dict[str, Any]:
+    """Repair a broken full scorecard JSON using mode=scorecard_full_repair."""
+    mode = _resolve_mode(model_mode)
+
+    if mode != "premium_nvidia":
+        return _placeholder_result(mode, "mock", "Full scorecard repair only for premium_nvidia.")
+
+    repair_messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are a JSON formatter. Convert the input into the exact schema below. "
+                "Return ONLY valid JSON. First character must be { last must be }. "
+                "No markdown. No explanation. No preface.\n\n"
+                "REQUIRED SCHEMA (fill all fields, use 0 for missing scores, empty string for text):\n"
+                '{"scores":{"clarity":{"score":0,"reason":"","quote":"","signals_used":[]},'
+                '"problem_understanding":{"score":0,"reason":"","quote":"","signals_used":[]},'
+                '"market_awareness":{"score":0,"reason":"","quote":"","signals_used":[]},'
+                '"differentiation":{"score":0,"reason":"","quote":"","signals_used":[]},'
+                '"business_model":{"score":0,"reason":"","quote":"","signals_used":[]},'
+                '"objection_handling":{"score":0,"reason":"","quote":"","signals_used":[]}},'
+                '"best_answer":"","weakest_answer":"","why_weak":"",'
+                '"improved_answer":"","improved_pitch":"","top_3_questions":["","",""],'
+                '"score_explanation":{"why_you_scored_this":"","what_stopped_80":"",'
+                '"answer_to_retry":{"round":null,"attack_tag":"","dimension":"","original_answer":"",'
+                '"why_it_hurt":"","retry_advice":"","sample_stronger_answer":""},'
+                '"estimated_score_if_fixed":{"current_overall":0,"estimated_new_overall":0,"reason":""}}}'
+            ),
+        },
+        {
+            "role": "user",
+            "content": "Convert this text into the JSON schema. Output JSON only:\n\n" + raw_bad_content[:5000],
+        },
+    ]
+
+    try:
+        content = nvidia_client.generate_nemotron_response(
+            repair_messages, mode="scorecard_full_repair"
+        )
+        return {
+            "ok": True,
+            "model_mode": mode,
+            "provider": "nvidia",
+            "content": content,
+            "error": None,
+        }
+    except RuntimeError as exc:
+        logger.warning("NVIDIA full scorecard repair call failed: %s", exc)
+        return {
+            "ok": False,
+            "model_mode": mode,
+            "provider": "nvidia",
+            "content": "",
+            "error": str(exc),
+        }
+
+
 def generate_coaching_response(
     messages: list[dict[str, str]],
     model_mode: str | None = None,
@@ -201,7 +362,11 @@ def generate_coaching_repair_response(
                 "Return ONLY valid JSON. First character must be { and last must be }. "
                 "No markdown. No explanation. No preface.\n\n"
                 "REQUIRED SCHEMA:\n"
-                '{"improved_answer": "", "improved_pitch": "", "top_3_questions": ["", "", ""]}'
+                '{"improved_answer":"","improved_pitch":"","top_3_questions":["","",""],'
+                '"score_explanation":{"why_you_scored_this":"","what_stopped_80":"",'
+                '"answer_to_retry":{"round":null,"attack_tag":"","dimension":"","original_answer":"",'
+                '"why_it_hurt":"","retry_advice":"","sample_stronger_answer":""},'
+                '"estimated_score_if_fixed":{"current_overall":0,"estimated_new_overall":0,"reason":""}}}'
             ),
         },
         {
@@ -313,6 +478,230 @@ def generate_scorecard_repair_response(
             "content": "",
             "error": str(exc),
         }
+
+
+def generate_retry_comparison_response(
+    messages: list[dict[str, str]],
+    model_mode: str | None = None,
+) -> dict[str, Any]:
+    """Route a retry answer comparison request (mode=retry_comparison)."""
+    mode = _resolve_mode(model_mode)
+
+    if mode == "premium_nvidia":
+        try:
+            content = nvidia_client.generate_nemotron_response(
+                messages, mode="retry_comparison"
+            )
+            return {
+                "ok": True,
+                "model_mode": mode,
+                "provider": "nvidia",
+                "content": content,
+                "error": None,
+            }
+        except RuntimeError as exc:
+            logger.warning("NVIDIA retry comparison call failed: %s", exc)
+            return {
+                "ok": False,
+                "model_mode": mode,
+                "provider": "nvidia",
+                "content": "",
+                "error": str(exc),
+            }
+
+    return _placeholder_result(mode, "mock", f"Retry comparison via '{mode}' not implemented.")
+
+
+def generate_retry_comparison_repair_response(
+    raw_bad_content: str,
+    model_mode: str | None = None,
+) -> dict[str, Any]:
+    """Repair a broken retry comparison JSON (mode=retry_comparison_repair)."""
+    mode = _resolve_mode(model_mode)
+
+    if mode != "premium_nvidia":
+        return _placeholder_result(mode, "mock", "Retry comparison repair only for premium_nvidia.")
+
+    repair_messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are a JSON formatter. Convert the input into the exact schema below. "
+                "Return ONLY valid JSON. First character must be { last must be }.\n\n"
+                "REQUIRED SCHEMA:\n"
+                '{"comparison":{"old_answer_summary":"","new_answer_summary":"","what_improved":"",'
+                '"still_missing":"","specific_tip":"","estimated_dimension_before":0,'
+                '"estimated_dimension_after":0,"estimated_overall_lift":0,'
+                '"verdict":"improved|slightly_improved|needs_more_work"},'
+                '"next_practice_prompt":""}'
+            ),
+        },
+        {
+            "role": "user",
+            "content": "Convert this text into the JSON schema. Output JSON only:\n\n" + raw_bad_content[:4000],
+        },
+    ]
+
+    try:
+        content = nvidia_client.generate_nemotron_response(
+            repair_messages, mode="retry_comparison_repair"
+        )
+        return {
+            "ok": True,
+            "model_mode": mode,
+            "provider": "nvidia",
+            "content": content,
+            "error": None,
+        }
+    except RuntimeError as exc:
+        logger.warning("NVIDIA retry comparison repair call failed: %s", exc)
+        return {
+            "ok": False,
+            "model_mode": mode,
+            "provider": "nvidia",
+            "content": "",
+            "error": str(exc),
+        }
+
+
+def _call_nvidia_json_mode(
+    messages: list[dict[str, str]],
+    nemotron_mode: str,
+    model_mode: str | None,
+    label: str,
+) -> dict[str, Any]:
+    mode = _resolve_mode(model_mode)
+    if mode != "premium_nvidia":
+        return _placeholder_result(mode, "mock", f"{label} only for premium_nvidia.")
+    try:
+        content = nvidia_client.generate_nemotron_response(messages, mode=nemotron_mode)
+        return {"ok": True, "model_mode": mode, "provider": "nvidia", "content": content, "error": None}
+    except RuntimeError as exc:
+        logger.warning("NVIDIA %s call failed: %s", label, exc)
+        return {"ok": False, "model_mode": mode, "provider": "nvidia", "content": "", "error": str(exc)}
+
+
+def _call_nvidia_repair_mode(
+    repair_messages: list[dict[str, str]],
+    nemotron_mode: str,
+    model_mode: str | None,
+    label: str,
+) -> dict[str, Any]:
+    mode = _resolve_mode(model_mode)
+    if mode != "premium_nvidia":
+        return _placeholder_result(mode, "mock", f"{label} repair only for premium_nvidia.")
+    try:
+        content = nvidia_client.generate_nemotron_response(repair_messages, mode=nemotron_mode)
+        return {"ok": True, "model_mode": mode, "provider": "nvidia", "content": content, "error": None}
+    except RuntimeError as exc:
+        logger.warning("NVIDIA %s repair failed: %s", label, exc)
+        return {"ok": False, "model_mode": mode, "provider": "nvidia", "content": "", "error": str(exc)}
+
+
+def generate_deal_verdict_response(
+    messages: list[dict[str, str]],
+    model_mode: str | None = None,
+) -> dict[str, Any]:
+    return _call_nvidia_json_mode(messages, "deal_verdict", model_mode, "deal verdict")
+
+
+def generate_deal_verdict_repair_response(
+    raw_bad_content: str,
+    model_mode: str | None = None,
+) -> dict[str, Any]:
+    repair_messages = [
+        {
+            "role": "system",
+            "content": (
+                "Convert input to JSON. Return ONLY valid JSON.\n"
+                '{"judge_reaction":"","deal_opening_offer":"","why_this_verdict":"","next_step_label":""}'
+            ),
+        },
+        {"role": "user", "content": "Output JSON only:\n\n" + raw_bad_content[:4000]},
+    ]
+    return _call_nvidia_repair_mode(repair_messages, "deal_verdict_repair", model_mode, "deal verdict")
+
+
+def generate_deal_round_response(
+    messages: list[dict[str, str]],
+    model_mode: str | None = None,
+) -> dict[str, Any]:
+    mode = _resolve_mode(model_mode)
+    if mode == "premium_nvidia":
+        try:
+            content = nvidia_client.generate_nemotron_response(messages, mode="deal_round")
+            return {"ok": True, "model_mode": mode, "provider": "nvidia", "content": content, "error": None}
+        except RuntimeError as exc:
+            logger.warning("NVIDIA deal round call failed: %s", exc)
+            return {"ok": False, "model_mode": mode, "provider": "nvidia", "content": "", "error": str(exc)}
+    return _placeholder_result(mode, "mock", f"Deal round via '{mode}' not implemented.")
+
+
+def generate_deal_scoring_response(
+    messages: list[dict[str, str]],
+    model_mode: str | None = None,
+) -> dict[str, Any]:
+    """Route a deal dimension-scoring request (mode=deal_scorecard_scoring).
+
+    Nemotron judges all 6 deal dimensions semantically from the negotiation transcript.
+    Returns scores + deal_outcome + best_move + weakest_move only (no coaching text).
+    """
+    return _call_nvidia_json_mode(messages, "deal_scorecard_scoring", model_mode, "deal scorecard scoring")
+
+
+def generate_deal_scoring_repair_response(
+    raw_bad_content: str,
+    model_mode: str | None = None,
+) -> dict[str, Any]:
+    """Repair a broken deal scoring JSON (mode=deal_scorecard_scoring_repair)."""
+    repair_messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are a JSON formatter. Convert the input into the exact schema below. "
+                "Return ONLY valid JSON. First character must be { last must be }. "
+                "No markdown. No reasoning. No array.\n\n"
+                "REQUIRED SCHEMA:\n"
+                '{"scores":{"anchoring":{"score":0,"reason":"","quote":""},'
+                '"evidence":{"score":0,"reason":"","quote":""},'
+                '"concession_control":{"score":0,"reason":"","quote":""},'
+                '"alternatives":{"score":0,"reason":"","quote":""},'
+                '"value_articulation":{"score":0,"reason":"","quote":""},'
+                '"closing":{"score":0,"reason":"","quote":""}},'
+                '"deal_outcome":"balanced","best_move":"","weakest_move":""}'
+            ),
+        },
+        {"role": "user", "content": "Output JSON only:\n\n" + raw_bad_content[:4000]},
+    ]
+    return _call_nvidia_repair_mode(
+        repair_messages, "deal_scorecard_scoring_repair", model_mode, "deal scorecard scoring"
+    )
+
+
+def generate_deal_scorecard_coaching_response(
+    messages: list[dict[str, str]],
+    model_mode: str | None = None,
+) -> dict[str, Any]:
+    return _call_nvidia_json_mode(messages, "deal_scorecard_coaching", model_mode, "deal scorecard coaching")
+
+
+def generate_deal_scorecard_repair_response(
+    raw_bad_content: str,
+    model_mode: str | None = None,
+) -> dict[str, Any]:
+    repair_messages = [
+        {
+            "role": "system",
+            "content": (
+                "Convert input to JSON. Return ONLY valid JSON.\n"
+                '{"deal_outcome_summary":"","best_move":"","weakest_move":"",'
+                '"improved_response":"","top_3_prep_points":["","",""],'
+                '"combined_summary":"","next_best_action":""}'
+            ),
+        },
+        {"role": "user", "content": "Output JSON only:\n\n" + raw_bad_content[:5000]},
+    ]
+    return _call_nvidia_repair_mode(repair_messages, "deal_scorecard_repair", model_mode, "deal scorecard")
 
 
 # ---------------------------------------------------------------------------

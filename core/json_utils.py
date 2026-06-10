@@ -3,22 +3,35 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Any
 
+logger = logging.getLogger(__name__)
 
-def extract_json_block(text: str) -> str | None:
-    """Extract the first JSON object or array block from text."""
+
+def strip_markdown_fences(text: str) -> str:
+    """Remove markdown code fences and trim surrounding whitespace."""
     if not text:
-        return None
-
-    fenced = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text, re.IGNORECASE)
+        return ""
+    stripped = text.strip()
+    fenced = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", stripped, re.IGNORECASE)
     if fenced:
         return fenced.group(1).strip()
+    # Strip lone opening/closing fence lines
+    lines = stripped.splitlines()
+    if lines and lines[0].strip().startswith("```"):
+        lines = lines[1:]
+    if lines and lines[-1].strip() == "```":
+        lines = lines[:-1]
+    return "\n".join(lines).strip()
 
-    for opener, closer in (("{", "}"), ("[", "]")):
-        start = text.find(opener)
-        if start == -1:
+
+def _balanced_blocks(text: str, opener: str, closer: str) -> list[str]:
+    """Return all balanced opener/closer blocks found in text."""
+    blocks: list[str] = []
+    for start in range(len(text)):
+        if text[start] != opener:
             continue
         depth = 0
         for index in range(start, len(text)):
@@ -28,8 +41,46 @@ def extract_json_block(text: str) -> str | None:
             elif char == closer:
                 depth -= 1
                 if depth == 0:
-                    return text[start : index + 1]
-    return None
+                    blocks.append(text[start : index + 1])
+                    break
+    return blocks
+
+
+def extract_largest_json_object(text: str) -> str | None:
+    """Extract the largest parseable JSON object from mixed model output."""
+    if not text:
+        return None
+
+    cleaned = strip_markdown_fences(text)
+    candidates = _balanced_blocks(cleaned, "{", "}")
+    if not candidates:
+        return None
+
+    # Prefer the largest block that parses cleanly
+    for block in sorted(candidates, key=len, reverse=True):
+        try:
+            parsed = json.loads(block)
+            if isinstance(parsed, dict):
+                return block
+        except json.JSONDecodeError:
+            continue
+
+    # Fall back to largest balanced block even if not yet parseable
+    return max(candidates, key=len)
+
+
+def extract_json_block(text: str) -> str | None:
+    """Extract the largest JSON object block from text (legacy name, improved behavior)."""
+    if not text:
+        return None
+    return extract_largest_json_object(text)
+
+
+def sanitize_for_log(text: str, limit: int = 200) -> str:
+    """Return a safe preview string for debug logs (no secrets, truncated)."""
+    preview = strip_markdown_fences(text or "")
+    preview = re.sub(r"\s+", " ", preview).strip()
+    return preview[:limit]
 
 
 def safe_json_parse(text: str, default: Any = None) -> Any:
@@ -40,16 +91,153 @@ def safe_json_parse(text: str, default: Any = None) -> Any:
     if not text:
         return default
 
+    cleaned = strip_markdown_fences(text)
+
     try:
-        return json.loads(text)
+        return json.loads(cleaned)
     except json.JSONDecodeError:
-        block = extract_json_block(text)
-        if not block:
-            return default
+        pass
+
+    block = extract_largest_json_object(cleaned)
+    if not block:
+        return default
+    try:
+        return json.loads(block)
+    except json.JSONDecodeError:
+        return default
+
+
+def ends_abruptly(text: str) -> bool:
+    """Return True if text looks cut off mid-sentence."""
+    t = (text or "").strip()
+    if not t:
+        return True
+    if t[-1] in ".!?":
+        return False
+    if len(t) < 50:
+        return True
+    last_word = t.split()[-1] if t.split() else ""
+    return len(last_word) <= 2 and len(t) < 80
+
+
+def normalize_parsed_root(parsed: Any) -> dict[str, Any] | None:
+    """Unwrap array-wrapped or nested model JSON into a single object."""
+    if isinstance(parsed, dict):
+        return parsed
+    if isinstance(parsed, list):
+        for item in parsed:
+            if isinstance(item, dict) and item:
+                return item
+    return None
+
+
+def extract_partial_string_fields(text: str, keys: list[str]) -> dict[str, str]:
+    """Best-effort regex extraction of string fields from truncated JSON."""
+    if not text:
+        return {}
+    cleaned = strip_markdown_fences(text)
+    found: dict[str, str] = {}
+    for key in keys:
+        pattern = rf'"{re.escape(key)}"\s*:\s*"((?:[^"\\]|\\.)*)"'
+        match = re.search(pattern, cleaned, re.DOTALL)
+        if match:
+            try:
+                found[key] = json.loads(f'"{match.group(1)}"')
+            except json.JSONDecodeError:
+                found[key] = match.group(1).replace('\\"', '"').strip()
+    return found
+
+
+def extract_partial_string_list(text: str, key: str, min_items: int = 1) -> list[str]:
+    """Extract a JSON string array field from truncated output."""
+    if not text:
+        return []
+    cleaned = strip_markdown_fences(text)
+    match = re.search(rf'"{re.escape(key)}"\s*:\s*\[([\s\S]*?)\]', cleaned)
+    if not match:
+        return []
+    items: list[str] = []
+    for item_match in re.finditer(r'"((?:[^"\\]|\\.)*)"', match.group(1)):
         try:
-            return json.loads(block)
+            items.append(json.loads(f'"{item_match.group(1)}"'))
         except json.JSONDecodeError:
-            return default
+            items.append(item_match.group(1).replace('\\"', '"').strip())
+    return [i for i in items if i][:max(min_items, 8)]
+
+
+def parse_json_object(
+    text: str,
+    reasoning_fallback: str | None = None,
+    string_fields: list[str] | None = None,
+) -> dict[str, Any]:
+    """Parse model output into a dict using multiple extraction strategies."""
+    parsed, _ = parse_model_json(text, reasoning_fallback=reasoning_fallback)
+    root = normalize_parsed_root(parsed)
+    if root:
+        return root
+
+    partial = extract_partial_string_fields(text, string_fields or [])
+    if partial:
+        return partial
+
+    fallback = safe_json_parse(text)
+    root = normalize_parsed_root(fallback)
+    return root if root else {}
+
+
+def parse_model_json(
+    text: str,
+    reasoning_fallback: str | None = None,
+) -> tuple[Any, bool]:
+    """Parse model JSON output with extraction fallbacks.
+
+    Returns (parsed_value, repair_needed).
+    repair_needed is True when direct parse failed and extraction/reasoning was used.
+    """
+    default: dict[str, Any] = {}
+    if not text and not reasoning_fallback:
+        return default, False
+
+    content = strip_markdown_fences(text or "")
+    repair_needed = False
+
+    if content:
+        try:
+            parsed = json.loads(content)
+            if isinstance(parsed, dict):
+                return parsed, False
+            if isinstance(parsed, list) and len(parsed) == 1 and isinstance(parsed[0], dict):
+                return parsed[0], True
+            if isinstance(parsed, list):
+                return parsed, True
+        except json.JSONDecodeError:
+            repair_needed = True
+
+        block = extract_largest_json_object(content)
+        if block:
+            try:
+                parsed = json.loads(block)
+                if isinstance(parsed, (dict, list)):
+                    return parsed, repair_needed
+            except json.JSONDecodeError:
+                pass
+
+    if reasoning_fallback:
+        fb = strip_markdown_fences(reasoning_fallback)
+        block = extract_largest_json_object(fb)
+        if block:
+            try:
+                parsed = json.loads(block)
+                if isinstance(parsed, (dict, list)):
+                    logger.info(
+                        "json_utils: parsed JSON from reasoning_content fallback (len=%d)",
+                        len(fb),
+                    )
+                    return parsed, True
+            except json.JSONDecodeError:
+                pass
+
+    return default, True
 
 
 def fallback_scorecard() -> dict[str, Any]:
