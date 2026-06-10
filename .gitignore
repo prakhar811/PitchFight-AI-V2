@@ -41,3 +41,13 @@ models/
 *.gguf
 *.wav
 *.mp3
+
+# Local-only folders
+docs/
+scripts/
+tests/
+
+# Environment files
+.env
+.env.*
+.env.example
