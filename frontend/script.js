@@ -23,6 +23,10 @@ const state = {
   dealBattleLog: [],
   battleMetaSnapshot: null,
   scorecardSnapshot: null,
+  briefingMode: "quick",
+  briefStructured: false,
+  pitchExtractionConfidence: null,
+  battleConfidencePct: null,
 };
 
 let liveJudgeTurn = { text: "", meta: "" };
@@ -47,6 +51,10 @@ const dealInput = document.getElementById("deal-input");
 const dealStatus = document.getElementById("deal-status");
 
 const startupForm = document.getElementById("startup-form");
+const briefPreviewForm = document.getElementById("brief-preview-form");
+const quickPitchPanel = document.getElementById("panel-quick-pitch");
+const briefPreviewPanel = document.getElementById("brief-preview-panel");
+const briefingLeftCol = document.querySelector(".briefing-left-col");
 const chatWindow = document.getElementById("chat-window");
 const userInput = document.getElementById("user-input");
 const loadingOverlay = document.getElementById("loading-overlay");
@@ -58,6 +66,9 @@ function showScreen(name) {
   Object.entries(screens).forEach(([key, el]) => {
     el.classList.toggle("active", key === name);
   });
+  const app = document.getElementById("app");
+  app?.classList.toggle("app-arena-fullwidth", name === "battle" || name === "deal" || name === "scorecard");
+  app?.classList.toggle("app-scorecard-fullwidth", name === "scorecard");
   if (name === "landing" && landingIntroComplete) {
     finalizeLandingIntroStatic();
   }
@@ -191,22 +202,321 @@ function hideErrorBanner() {
   errorBanner.textContent = "";
 }
 
+const BRIEF_FIELD_KEYS = [
+  "name", "target_users", "problem", "solution", "why_ai", "traction", "competitors", "ask",
+];
+
+function setBriefFieldValue(key, value) {
+  const card = briefPreviewForm?.querySelector(`[data-field="${key}"]`);
+  if (!card) return;
+  const display = card.querySelector(".brief-read-value");
+  const input = card.querySelector(".brief-read-input");
+  const text = String(value ?? "").trim();
+  if (input) input.value = text;
+  if (display) {
+    display.textContent = text || "Not specified";
+    display.classList.toggle("is-empty", !text);
+  }
+}
+
+let _briefEditSnapshot = "";
+
+function closeBriefFieldExpanded(card) {
+  if (!card) return;
+  const input = card.querySelector(".brief-read-input");
+  const display = card.querySelector(".brief-read-value");
+  card.classList.remove("is-editing", "is-editing-expanded");
+  if (input) input.hidden = true;
+  if (display) display.hidden = false;
+  briefPreviewForm?.classList.remove("is-editing-active");
+  briefPreviewPanel?.classList.remove("is-editing-active");
+}
+
+function commitBriefFieldEdit(card) {
+  if (!card) return;
+  const input = card.querySelector(".brief-read-input");
+  const display = card.querySelector(".brief-read-value");
+  const text = (input?.value || "").trim();
+  if (display) {
+    display.textContent = text || "Not specified";
+    display.classList.toggle("is-empty", !text);
+  }
+  closeBriefFieldExpanded(card);
+  syncBriefToStartupForm();
+}
+
+function cancelBriefFieldEdit(card) {
+  if (!card) return;
+  const input = card.querySelector(".brief-read-input");
+  if (input) input.value = _briefEditSnapshot;
+  closeBriefFieldExpanded(card);
+}
+
+function startBriefFieldEdit(card) {
+  if (!card) return;
+
+  briefPreviewForm?.querySelectorAll(".brief-read-card.is-editing-expanded").forEach((open) => {
+    if (open !== card) cancelBriefFieldEdit(open);
+  });
+
+  const input = card.querySelector(".brief-read-input");
+  const display = card.querySelector(".brief-read-value");
+  _briefEditSnapshot = input?.value ?? "";
+
+  card.classList.add("is-editing", "is-editing-expanded");
+  briefPreviewForm?.classList.add("is-editing-active");
+  briefPreviewPanel?.classList.add("is-editing-active");
+
+  if (display) display.hidden = true;
+  if (input) {
+    input.hidden = false;
+    if (input.classList.contains("brief-read-textarea")) {
+      input.rows = 5;
+    }
+    requestAnimationFrame(() => {
+      input.focus();
+      if (typeof input.select === "function" && input.tagName === "INPUT") {
+        input.select();
+      } else if (input.tagName === "TEXTAREA") {
+        input.setSelectionRange(input.value.length, input.value.length);
+      }
+      card.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }
+}
+
+function initBriefPreviewEditors() {
+  briefPreviewForm?.querySelectorAll(".brief-read-card").forEach((card) => {
+    if (!card.querySelector(".brief-read-edit-actions")) {
+      const actions = document.createElement("div");
+      actions.className = "brief-read-edit-actions";
+      actions.innerHTML = `
+        <button type="button" class="btn btn-ghost btn-sm brief-read-cancel">Cancel</button>
+        <button type="button" class="btn btn-primary btn-sm brief-read-done">Done</button>
+      `;
+      card.appendChild(actions);
+    }
+
+    card.querySelector(".brief-read-edit")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (card.classList.contains("is-editing-expanded")) {
+        commitBriefFieldEdit(card);
+      } else {
+        startBriefFieldEdit(card);
+      }
+    });
+    card.querySelector(".brief-read-done")?.addEventListener("mousedown", (e) => e.preventDefault());
+    card.querySelector(".brief-read-done")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      commitBriefFieldEdit(card);
+    });
+    card.querySelector(".brief-read-cancel")?.addEventListener("mousedown", (e) => e.preventDefault());
+    card.querySelector(".brief-read-cancel")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      cancelBriefFieldEdit(card);
+    });
+    card.querySelector(".brief-read-input")?.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        cancelBriefFieldEdit(card);
+      }
+      if (e.key === "Enter" && e.ctrlKey) {
+        e.preventDefault();
+        commitBriefFieldEdit(card);
+      }
+    });
+  });
+}
+
+function syncBriefToStartupForm() {
+  if (!briefPreviewForm || !startupForm) return;
+  BRIEF_FIELD_KEYS.forEach((key) => {
+    const input = briefPreviewForm.querySelector(`[name="${key}"]`);
+    const field = startupForm.elements.namedItem(key);
+    if (field && input) field.value = input.value ?? "";
+  });
+}
+
 function getStartupPayload() {
+  if (briefPreviewPanel && !briefPreviewPanel.hidden) {
+    syncBriefToStartupForm();
+  }
   const data = new FormData(startupForm);
   return Object.fromEntries(data.entries());
 }
 
 function fillStartupForm(startup) {
   Object.entries(startup).forEach(([key, value]) => {
-    const field = startupForm.elements.namedItem(key);
+    const field = startupForm?.elements.namedItem(key);
     if (field) field.value = value ?? "";
+    if (BRIEF_FIELD_KEYS.includes(key)) setBriefFieldValue(key, value);
   });
+}
+
+function setBriefingMode(mode) {
+  state.briefingMode = mode;
+  const isQuick = mode === "quick";
+  const previewVisible = state.briefStructured;
+
+  document.getElementById("tab-quick-pitch")?.classList.toggle("active", isQuick);
+  document.getElementById("tab-advanced-briefing")?.classList.toggle("active", !isQuick);
+  document.getElementById("tab-quick-pitch")?.setAttribute("aria-selected", String(isQuick));
+  document.getElementById("tab-advanced-briefing")?.setAttribute("aria-selected", String(!isQuick));
+  briefingLeftCol?.classList.toggle("mode-quick", isQuick);
+  briefingLeftCol?.classList.toggle("mode-advanced", !isQuick);
+
+  const advancedPanel = document.getElementById("panel-advanced-briefing");
+  if (advancedPanel) advancedPanel.hidden = isQuick;
+
+  if (isQuick) {
+    if (quickPitchPanel) quickPitchPanel.hidden = previewVisible;
+    if (briefPreviewPanel) briefPreviewPanel.hidden = !previewVisible;
+  } else {
+    if (quickPitchPanel) quickPitchPanel.hidden = true;
+    if (briefPreviewPanel) briefPreviewPanel.hidden = true;
+    syncBriefToStartupForm();
+  }
+
+  const subtitle = document.getElementById("briefing-subtitle");
+  if (subtitle) {
+    subtitle.textContent = isQuick
+      ? "Pitch naturally. We'll structure it before the judge attacks it."
+      : "Want full control? Edit every field manually.";
+  }
+}
+
+function showBriefPreview(meta = {}) {
+  if (quickPitchPanel) quickPitchPanel.hidden = true;
+  if (briefPreviewPanel) briefPreviewPanel.hidden = false;
+  const advancedPanel = document.getElementById("panel-advanced-briefing");
+  if (advancedPanel) advancedPanel.hidden = true;
+
+  const confEl = document.getElementById("brief-preview-confidence");
+  if (confEl) {
+    const conf = meta.confidence || "medium";
+    confEl.textContent = `Confidence: ${String(conf).toUpperCase()}`;
+    confEl.className = `brief-confidence-chip confidence-${conf}`;
+  }
+
+  const hintEl = document.getElementById("brief-preview-hint");
+  if (hintEl) {
+    if (meta.source === "local_fallback") {
+      hintEl.textContent = "Quick structure applied — tap ✎ on any field to edit.";
+      hintEl.hidden = false;
+    } else if (Array.isArray(meta.missing_fields) && meta.missing_fields.length) {
+      hintEl.textContent = `Not in your pitch: ${meta.missing_fields.join(", ")}`;
+      hintEl.hidden = false;
+    } else {
+      hintEl.hidden = true;
+      hintEl.textContent = "";
+    }
+  }
+}
+
+function hideBriefPreview() {
+  state.briefStructured = false;
+  if (quickPitchPanel) quickPitchPanel.hidden = false;
+  if (briefPreviewPanel) briefPreviewPanel.hidden = true;
+  document.getElementById("structure-pitch-hint")?.setAttribute("hidden", "");
+  document.getElementById("brief-preview-hint")?.setAttribute("hidden", "");
+  briefPreviewForm?.querySelectorAll(".brief-read-card.is-editing").forEach((card) => {
+    commitBriefFieldEdit(card);
+  });
+}
+
+function extractionConfidenceLevel(meta = {}) {
+  const raw = meta.confidence ?? meta.extraction_confidence ?? "";
+  const key = String(raw).toLowerCase();
+  if (key === "high" || key === "medium" || key === "low") return key;
+  return null;
+}
+
+function confidenceFromStartupFields(startup = {}) {
+  const fields = ["name", "problem", "solution", "why_ai", "target_users", "traction", "competitors", "ask"];
+  const filled = fields.filter((field) => String(startup?.[field] ?? "").trim()).length;
+  if (filled >= 5) return "high";
+  if (filled >= 3) return "medium";
+  return "low";
+}
+
+function confidenceLevelToPct(level) {
+  const key = String(level || "medium").toLowerCase();
+  if (key === "high") return 76;
+  if (key === "low") return 22;
+  return 50;
+}
+
+function syncPitchExtractionConfidence(meta = {}, startup = null) {
+  const level = extractionConfidenceLevel(meta) || confidenceFromStartupFields(startup) || "medium";
+  state.pitchExtractionConfidence = level;
+  return level;
+}
+
+function fillBriefPreview(startup, meta = {}) {
+  state.briefStructured = true;
+  syncPitchExtractionConfidence(meta, startup);
+  fillStartupForm(startup);
+  showBriefPreview(meta);
+}
+
+function resetSetupScreen() {
+  state.briefStructured = false;
+  state.pitchExtractionConfidence = null;
+  setBriefingMode("quick");
+  hideBriefPreview();
+  const quickText = document.getElementById("quick-pitch-text");
+  if (quickText) quickText.value = "";
+  state.pendingVoicePitch = null;
+  state.startMode = "text";
+}
+
+async function structurePitch() {
+  const pitchText = document.getElementById("quick-pitch-text")?.value?.trim();
+  if (!pitchText) {
+    showErrorBanner("Type or paste your pitch first.");
+    return;
+  }
+  try {
+    setGlobalLoading(true, "Structuring your pitch…");
+    state.startMode = "text";
+    const data = await apiPost("/api/structure-pitch", { pitch_text: pitchText });
+    if (!data.ok) {
+      showErrorBanner(data.error || "Could not structure your pitch. Try Advanced Briefing.");
+      return;
+    }
+    fillBriefPreview(data.startup_context, data);
+    hideErrorBanner();
+  } catch (error) {
+    console.error(error);
+    showErrorBanner("We couldn't structure that pitch. Try Advanced Briefing or edit manually.");
+  } finally {
+    setGlobalLoading(false);
+  }
+}
+
+function applyVoicePitchToBriefing(data) {
+  state.pendingVoicePitch = data;
+  state.startMode = "voice";
+  const extracted = data.extracted ?? {};
+  fillBriefPreview(extracted, {
+    brief_summary: (data.transcript || "").slice(0, 240),
+    confidence: data.extraction_confidence || "medium",
+  });
+  const quickText = document.getElementById("quick-pitch-text");
+  if (quickText && data.transcript) quickText.value = data.transcript;
+  setBriefingMode("quick");
 }
 
 const PERSONA_LABELS = {
   skeptical_vc: "Skeptical VC",
   technical_judge: "Technical Judge",
   hackathon_judge: "Hackathon Judge",
+};
+
+const DIFFICULTY_LABELS = {
+  practice: "Practice Mode",
+  judge: "Judge Mode",
+  investor: "Investor Mode",
 };
 
 function pressureMeterLevel(data) {
@@ -322,14 +632,38 @@ function updatePressureCore(tier, label) {
   if (judgePressure && label) judgePressure.textContent = label;
 }
 
-function updateConfidenceMeter(pressurePct) {
+function renderConfidenceMeter(confidencePct) {
   const fill = document.getElementById("confidence-meter-fill");
   if (!fill) return;
-  const confidence = Math.max(8, Math.min(100, 100 - pressurePct));
+  const confidence = Math.max(8, Math.min(92, Math.round(confidencePct)));
   fill.style.width = `${confidence}%`;
   fill.classList.toggle("confidence-low", confidence < 35);
   fill.classList.toggle("confidence-mid", confidence >= 35 && confidence < 65);
   fill.classList.toggle("confidence-high", confidence >= 65);
+}
+
+function refreshBattleConfidenceFromPressure(pressurePct, round = 1) {
+  const base = confidenceLevelToPct(state.pitchExtractionConfidence || "medium");
+  const pressureDrag = Math.round(Number(pressurePct) * 0.25);
+  const roundDrag = Math.max(0, Number(round) - 1) * 2;
+  const ceiling = Math.max(8, base - pressureDrag - roundDrag);
+  if (state.battleConfidencePct == null) {
+    state.battleConfidencePct = ceiling;
+  } else {
+    state.battleConfidencePct = Math.min(state.battleConfidencePct, ceiling);
+  }
+  renderConfidenceMeter(state.battleConfidencePct);
+}
+
+function adjustBattleConfidenceFromAnswer(quality) {
+  const deltas = { strong: 8, partial: -2, weak: -12, non_answer: -20 };
+  const delta = deltas[String(quality || "").toLowerCase()] ?? 0;
+  if (!delta) return;
+  state.battleConfidencePct = Math.max(
+    8,
+    Math.min(92, (state.battleConfidencePct ?? confidenceLevelToPct(state.pitchExtractionConfidence)) + delta),
+  );
+  renderConfidenceMeter(state.battleConfidencePct);
 }
 
 function updateComboMeter(round) {
@@ -631,7 +965,7 @@ function updateBattleMeta(data) {
     fill.style.width = `${pct}%`;
     fill.className = `pressure-meter-fill pressure-${tier}`;
   }
-  updateConfidenceMeter(pct);
+  refreshBattleConfidenceFromPressure(pct, round);
   updateComboMeter(round);
   const progressFill = document.getElementById("battle-progress-fill");
   if (progressFill) {
@@ -725,7 +1059,22 @@ export async function loadSample() {
   try {
     setGlobalLoading(true, "Loading demo founder…");
     const data = await apiPost("/api/load-sample");
-    fillStartupForm(data.startup);
+    state.startMode = "text";
+    setBriefingMode("quick");
+    fillBriefPreview(data.startup, {
+      brief_summary: data.startup?.solution || data.startup?.problem || "Demo founder loaded.",
+      confidence: "high",
+    });
+    const quickText = document.getElementById("quick-pitch-text");
+    if (quickText) {
+      quickText.value = [
+        data.startup?.name,
+        data.startup?.problem,
+        data.startup?.solution,
+        data.startup?.traction,
+        data.startup?.ask,
+      ].filter(Boolean).join(" ");
+    }
     showScreen("setup");
     hideErrorBanner();
   } catch (error) {
@@ -752,6 +1101,11 @@ export async function startSession() {
     document.getElementById("battle-rounds-drawer")?.setAttribute("hidden", "");
     document.getElementById("battle-coach-bar")?.setAttribute("hidden", "");
     document.getElementById("voice-turn-preview")?.setAttribute("hidden", "");
+
+    if (!state.pitchExtractionConfidence) {
+      syncPitchExtractionConfidence({}, getStartupPayload());
+    }
+    state.battleConfidencePct = null;
 
     const payload = {
       mode: "pitch_battle",
@@ -834,6 +1188,9 @@ export async function sendMessage(messageOverride, voiceMeta = null) {
     }
 
     updateBattleMeta(data);
+    if (data.answer_quality) {
+      adjustBattleConfidenceFromAnswer(data.answer_quality);
+    }
     const chatMeta = data.model_ok
       ? `${data.attack_tag} · Round ${data.round} · ⚡ Premium Nemotron`
       : `${data.attack_tag} · Round ${data.round}`;
@@ -907,6 +1264,8 @@ export async function resetBattle() {
   state.uiMode = "pitch";
   state.pendingDealVoiceTurn = null;
   state.startMode = "text";
+  state.pitchExtractionConfidence = null;
+  state.battleConfidencePct = null;
   state.conversationLog = [];
   state.dealConversationLog = [];
   state.battleLog = [];
@@ -971,16 +1330,58 @@ function attachShowMore(el) {
 function buildDimensionRow(key, value, opts = {}) {
   const s = value?.score ?? 0;
   const band = scoreBand(s);
+  const dimLabel = formatDimLabel(key);
+  const labelSlug = String(value?.label || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  const reason = value?.reason ?? "";
+  const layout = opts.layout ?? "default";
+
+  if (layout === "scorecard") {
+    const row = document.createElement("div");
+    const fillSlug = labelSlug || "developing";
+    let highlightClass = "";
+    if (opts.weakestKey === key) highlightClass = " sc-dim-weakest";
+    else if (opts.strongestKey === key) highlightClass = " sc-dim-strongest";
+    row.className = `dimension-row score-row dimension-row-scorecard sc-dim-card ${band}${highlightClass}`;
+    const flagHtml =
+      opts.weakestKey === key
+        ? `<span class="sc-dim-flag sc-dim-flag-weak">Weakest</span>`
+        : opts.strongestKey === key
+          ? `<span class="sc-dim-flag sc-dim-flag-strong">Strongest</span>`
+          : "";
+    const badgeHtml = value?.label
+      ? `<span class="score-label dimension-badge score-label-${escapeHtml(labelSlug)}">${escapeHtml(value.label)}</span>`
+      : "";
+    row.innerHTML = `
+      <div class="sc-dim-head">
+        <div class="sc-dim-title">
+          <span class="dimension-name">${dimLabel}</span>
+          ${flagHtml}
+        </div>
+        <div class="sc-dim-meta">
+          <strong class="dimension-score">${s}</strong>
+          ${badgeHtml}
+        </div>
+      </div>
+      <div class="dimension-bar bar-track"><div class="dimension-bar-fill bar-fill dim-fill-${escapeHtml(fillSlug)}" style="width:0%" data-width="${s}%"></div></div>
+    `;
+    requestAnimationFrame(() => {
+      const fill = row.querySelector(".dimension-bar-fill");
+      if (fill) fill.style.width = fill.dataset.width || `${s}%`;
+    });
+    return row;
+  }
+
   const row = document.createElement("div");
   row.className = `dimension-row score-row ${band}`;
-  const dimLabel = formatDimLabel(key);
   const labelHtml = value?.label
-    ? `<span class="score-label">${escapeHtml(value.label)}</span>`
+    ? `<span class="score-label score-label-${escapeHtml(labelSlug)}">${escapeHtml(value.label)}</span>`
     : "";
   const quote = value?.quote && opts.showQuote
     ? `<span class="quote-chip">"${escapeHtml(value.quote)}"</span>`
     : "";
-  const reason = value?.reason ?? "";
   row.innerHTML = `
     <div class="dimension-row-head score-row-head">
       <span class="dimension-name">${dimLabel}${labelHtml}</span>
@@ -1029,6 +1430,79 @@ function switchResultTab(tabsRootId, tabName) {
   tab?.click();
 }
 
+function initScorecardTabs() {
+  const root = document.getElementById("scorecard-tabs");
+  if (!root || root.dataset.init === "1") return;
+  root.dataset.init = "1";
+  root.addEventListener("click", (e) => {
+    const tab = e.target.closest(".sc-tab");
+    if (!tab) return;
+    activateScorecardTab(tab.dataset.tab);
+  });
+}
+
+function activateScorecardTab(tabName) {
+  document.querySelectorAll("#scorecard-tabs .sc-tab").forEach((tab) => {
+    const active = tab.dataset.tab === tabName;
+    tab.classList.toggle("active", active);
+    tab.setAttribute("aria-selected", active ? "true" : "false");
+  });
+  document.querySelectorAll(".sc-tab-panels .sc-tab-panel").forEach((panel) => {
+    const active = panel.dataset.panel === tabName;
+    panel.classList.toggle("active", active);
+    panel.hidden = !active;
+  });
+}
+
+function renderSignalsGroups(css) {
+  const container = document.getElementById("signals-summary");
+  const emptyEl = document.getElementById("signals-empty");
+  if (!container) return false;
+
+  const groups = [
+    { key: "numbers", label: "Numbers" },
+    { key: "validation", label: "Validation" },
+    { key: "competitors", label: "Competitors" },
+    { key: "revenue_signals", label: "Revenue" },
+    { key: "technical_mechanisms", label: "Mechanisms" },
+  ];
+
+  container.innerHTML = "";
+  let hasAny = false;
+
+  groups.forEach(({ key, label }) => {
+    const items = (css?.[key] ?? []).filter((s) => String(s).trim());
+    if (!items.length) return;
+    hasAny = true;
+    const group = document.createElement("div");
+    group.className = "sc-signal-group";
+    const groupLabel = document.createElement("p");
+    groupLabel.className = "sc-signal-group-label";
+    groupLabel.textContent = label;
+    group.appendChild(groupLabel);
+    const chips = document.createElement("div");
+    chips.className = "sc-signal-chips";
+    items.forEach((sig) => {
+      const chip = document.createElement("span");
+      chip.className = "sc-signal-chip";
+      chip.textContent = sig;
+      chips.appendChild(chip);
+    });
+    group.appendChild(chips);
+    container.appendChild(group);
+  });
+
+  if (emptyEl) emptyEl.hidden = hasAny;
+  return hasAny;
+}
+
+function hasNoBattleAnswers(data) {
+  const scores = data.scores ?? {};
+  const allZero = Object.values(scores).every((v) => (v?.score ?? 0) === 0);
+  const noBest = !String(data.best_answer ?? "").trim();
+  return allZero || noBest;
+}
+
 function renderScorecard(data) {
   const overall = data.overall ?? 0;
   const overallEl = document.getElementById("overall-score");
@@ -1042,42 +1516,54 @@ function renderScorecard(data) {
 
   const scores = data.scores ?? {};
   const { strongest, weakest } = getStrongestWeakest(scores);
+  const se = data.score_explanation ?? {};
+  const explanation = se;
+  const nemotronScored = isNemotronScorecardSource(data.scorecard_source);
 
+  const opponent = PERSONA_LABELS[state.persona] ?? data.opponent ?? "AI Judge";
+  const mode = DIFFICULTY_LABELS[state.difficultyProfile]
+    ?? data.difficulty_label
+    ?? "Practice Mode";
+  const heroLabel = document.getElementById("sc-hero-label");
+  if (heroLabel) {
+    heroLabel.textContent = `Pitch Battle Result · ${opponent} · ${mode}`;
+  }
+
+  const whySentence = se.why_you_scored_this?.split(/[.!?]/)[0]?.trim() ?? "";
   const readoutEl = document.getElementById("pitch-readout");
   if (readoutEl) {
-    const se = data.score_explanation ?? {};
-    readoutEl.textContent =
-      data.improved_pitch?.split(/[.!?]/)[0]?.trim()
-      || se.why_you_scored_this?.split(/[.!?]/)[0]?.trim()
-      || (data.overall_label ? `${data.overall_label} pitch — review dimensions below.` : "Your pitch battle is complete.");
+    const parts = [];
+    if (data.overall_label) parts.push(data.overall_label);
+    if (whySentence) parts.push(whySentence);
+    readoutEl.textContent = parts.length
+      ? parts.join(" — ")
+      : "Your pitch battle is complete.";
   }
 
   const strongChip = document.getElementById("chip-strongest-dim");
   const weakChip = document.getElementById("chip-weakest-dim");
   if (strongChip) {
     strongChip.textContent = strongest
-      ? `Strongest: ${formatDimLabel(strongest[0])}`
-      : "Strongest: —";
+      ? `↑ Strongest: ${formatDimLabel(strongest[0])}`
+      : "↑ Strongest: —";
   }
   if (weakChip) {
     weakChip.textContent = weakest
-      ? `Weakest: ${formatDimLabel(weakest[0])}`
-      : "Weakest: —";
+      ? `↓ Weakest: ${formatDimLabel(weakest[0])}`
+      : "↓ Weakest: —";
   }
 
-  const sourceBadgeEl = document.getElementById("scorecard-source-badge");
   const chipSource = document.getElementById("chip-score-source");
-  const fallbackWarnEl = document.getElementById("scorecard-fallback-warning");
-  const nemotronScored = isNemotronScorecardSource(data.scorecard_source);
-  if (sourceBadgeEl) {
-    sourceBadgeEl.textContent = nemotronScored ? "Powered by NVIDIA Nemotron" : "";
-    sourceBadgeEl.hidden = !nemotronScored;
-  }
+  const sourceBadgeEl = document.getElementById("scorecard-source-badge");
   if (chipSource) {
-    chipSource.textContent = nemotronScored ? "Nemotron Judge" : "";
-    chipSource.hidden = !nemotronScored;
-    chipSource.classList.toggle("chip-source", nemotronScored);
+    chipSource.textContent = nemotronScored ? "⚡ Nemotron" : "⚡ Local";
+    chipSource.hidden = false;
   }
+  if (sourceBadgeEl) {
+    sourceBadgeEl.textContent = nemotronScored ? "Powered by NVIDIA Nemotron" : "Local scoring";
+  }
+
+  const fallbackWarnEl = document.getElementById("scorecard-fallback-warning");
   if (fallbackWarnEl) {
     fallbackWarnEl.textContent = "";
     fallbackWarnEl.hidden = true;
@@ -1086,54 +1572,35 @@ function renderScorecard(data) {
     console.warn("Scorecard model note (not shown to user):", data.model_error);
   }
 
-  const nextWrap = document.getElementById("pitch-next-action");
-  const nextText = document.getElementById("pitch-next-action-text");
-  const se = data.score_explanation ?? {};
-  const atr = se.answer_to_retry ?? {};
-  const nextLine =
-    atr.retry_advice
-    || se.what_stopped_80?.split(/[.!?]/)[0]?.trim()
-    || (weakest ? `Retry your ${formatDimLabel(weakest[0])} answer with one concrete proof point.` : "");
-  if (nextWrap && nextText) {
-    if (nextLine) {
-      nextText.textContent = nextLine.endsWith(".") ? nextLine : `${nextLine}.`;
-      nextWrap.hidden = false;
-    } else {
-      nextWrap.hidden = true;
-    }
-  }
-
   const bars = document.getElementById("score-bars");
   if (bars) {
     bars.innerHTML = "";
     Object.entries(scores).forEach(([key, value]) => {
-      bars.appendChild(buildDimensionRow(key, value, { showQuote: true }));
+      bars.appendChild(
+        buildDimensionRow(key, value, {
+          layout: "scorecard",
+          strongestKey: strongest?.[0] ?? null,
+          weakestKey: weakest?.[0] ?? null,
+        }),
+      );
     });
   }
 
-  const sigEl = document.getElementById("signals-summary");
-  if (sigEl) {
-    const css = data.concrete_signals_summary ?? {};
-    const allSigs = [
-      ...(css.numbers ?? []),
-      ...(css.validation ?? []),
-      ...(css.competitors ?? []),
-      ...(css.revenue_signals ?? []),
-      ...(css.technical_mechanisms ?? []),
-    ].slice(0, 8);
-    sigEl.innerHTML = "";
-    if (allSigs.length > 0) {
-      allSigs.forEach((sig) => {
-        const chip = document.createElement("span");
-        chip.className = "source-chip signal-chip";
-        chip.textContent = sig;
-        sigEl.appendChild(chip);
-      });
-      sigEl.hidden = false;
-    } else {
-      sigEl.hidden = true;
-    }
+  renderSignalsGroups(data.concrete_signals_summary ?? {});
+
+  const atr = se.answer_to_retry ?? {};
+  const nextLine = atr.retry_advice ?? "";
+  const nextText = document.getElementById("pitch-next-action-text");
+  if (nextText) {
+    nextText.textContent = nextLine
+      ? (nextLine.endsWith(".") ? nextLine : `${nextLine}.`)
+      : "";
   }
+
+  const whyScoredEl = document.getElementById("score-why-scored");
+  const whatStoppedEl = document.getElementById("score-what-stopped");
+  if (whyScoredEl) whyScoredEl.textContent = explanation.why_you_scored_this ?? "";
+  if (whatStoppedEl) whatStoppedEl.textContent = explanation.what_stopped_80 ?? "";
 
   const setText = (id, text) => {
     const el = document.getElementById(id);
@@ -1148,10 +1615,6 @@ function renderScorecard(data) {
   setText("improved-pitch", data.improved_pitch);
   setText("best-answer", data.best_answer);
   setText("weakest-answer", data.weakest_answer);
-
-  ["improved-answer", "improved-pitch", "best-answer", "weakest-answer"].forEach((id) => {
-    attachShowMore(document.getElementById(id));
-  });
 
   const setRoundBadge = (id, round) => {
     const el = document.getElementById(id);
@@ -1172,7 +1635,6 @@ function renderScorecard(data) {
     const why = data.why_weak ?? "";
     whyWeakEl.textContent = why ? `Why it hurt: ${why}` : "";
     whyWeakEl.hidden = !why;
-    attachShowMore(whyWeakEl);
   }
 
   const list = document.getElementById("top-questions");
@@ -1185,24 +1647,34 @@ function renderScorecard(data) {
     });
   }
 
+  const prepRetryText = document.getElementById("sc-prep-retry-text");
+  if (prepRetryText) {
+    const weakDim = weakest ? formatDimLabel(weakest[0]).toLowerCase() : "your weakest dimension";
+    prepRetryText.textContent = `Your weakest answer was on ${weakDim}. Practice it again?`;
+  }
+
+  const noAnswers = hasNoBattleAnswers(data);
+  const answersEmpty = document.getElementById("answers-empty-state");
+  const answersContent = document.getElementById("answers-content");
+  if (answersEmpty) answersEmpty.hidden = !noAnswers;
+  if (answersContent) answersContent.hidden = noAnswers;
+
   state.scoreExplanation = data.score_explanation ?? null;
 
   const pathBtn = document.getElementById("btn-path-to-80");
-  const hasExplanation = Boolean(state.scoreExplanation);
-  if (pathBtn) pathBtn.hidden = !hasExplanation;
+  if (pathBtn) pathBtn.hidden = !Boolean(state.scoreExplanation);
 
   renderVoiceDelivery(data.voice_delivery);
   renderJudgeVerdict(data.judge_verdict);
   state.judgeVerdict = data.judge_verdict ?? null;
 
-  initResultTabs("pitch-result-tabs", "pitch-result-panels");
-  switchResultTab("pitch-result-tabs", "overview");
-
-  const orb = document.querySelector(".score-orb");
+  const orb = document.querySelector("#screen-scorecard .sc-ring");
   if (orb) {
     orb.classList.remove("score-high", "score-mid", "score-low");
     orb.classList.add(scoreBand(overall));
   }
+
+  activateScorecardTab("overview");
 
   state.scorecardSnapshot = {
     overall,
@@ -1234,7 +1706,7 @@ function verdictNegotiationCta(label, fallback = "Start Negotiation →") {
 
 function renderJudgeVerdict(verdict) {
   const heroWrap = document.getElementById("judge-verdict-hero");
-  if (!verdict) {
+  if (!verdict || !verdict.interest_level) {
     if (heroWrap) heroWrap.hidden = true;
     return;
   }
@@ -1246,7 +1718,7 @@ function renderJudgeVerdict(verdict) {
   document.getElementById("verdict-persona-badge").textContent = personaLine;
   const badge = document.getElementById("verdict-interest-badge");
   badge.textContent = verdict.interest_label || interest.replaceAll("_", " ");
-  badge.className = `verdict-interest-badge result-verdict-badge interest-${interest}`;
+  badge.className = `sc-verdict-pill interest-${interest}`;
 
   const reactionEl = document.getElementById("verdict-reaction");
   if (reactionEl) {
@@ -1279,25 +1751,9 @@ function renderJudgeVerdict(verdict) {
     btn.addEventListener("click", startDealPhase);
     actions.appendChild(btn);
   } else if (interest === "too_early") {
-    const btn = document.createElement("button");
-    btn.className = "btn btn-secondary";
-    btn.type = "button";
-    btn.textContent = verdictNegotiationCta(verdict.next_step_label, "Practice More — Negotiate Later");
-    btn.addEventListener("click", () => showScreen("setup"));
-    actions.appendChild(btn);
+    /* Footer sc-cta-row handles retry / setup */
   } else if (interest === "no_interest") {
-    const retryBtn = document.createElement("button");
-    retryBtn.className = "btn btn-path80";
-    retryBtn.type = "button";
-    retryBtn.textContent = "View Path to 80+";
-    retryBtn.addEventListener("click", openPath80);
-    actions.appendChild(retryBtn);
-    const newBtn = document.createElement("button");
-    newBtn.className = "btn btn-ghost";
-    newBtn.type = "button";
-    newBtn.textContent = "New Battle";
-    newBtn.addEventListener("click", resetBattle);
-    actions.appendChild(newBtn);
+    /* Footer sc-cta-row handles Path to 80+ and New Battle */
   } else if (interest === "mild_interest" || interest === "strong_interest") {
     if (!verdict.can_continue_to_deal) {
       const btn = document.createElement("button");
@@ -1308,12 +1764,7 @@ function renderJudgeVerdict(verdict) {
       actions.appendChild(btn);
     }
   } else if (verdict.deal_type === "verdict_only") {
-    const gapBtn = document.createElement("button");
-    gapBtn.className = "btn btn-path80";
-    gapBtn.type = "button";
-    gapBtn.textContent = verdict.next_step_label || "View Path to 80+";
-    gapBtn.addEventListener("click", openPath80);
-    actions.appendChild(gapBtn);
+    /* Footer sc-cta-row handles Path to 80+ */
   }
 }
 
@@ -1648,13 +2099,16 @@ function closeNegotiationModal() {
 
 function renderVoiceDelivery(vd) {
   const content = document.getElementById("voice-delivery-content");
+  const section = document.getElementById("voice-delivery-section");
   const tab = document.getElementById("tab-voice-delivery");
   if (!content) return;
   if (!vd || typeof vd !== "object") {
+    if (section) section.hidden = true;
     if (tab) tab.hidden = true;
     content.innerHTML = "";
     return;
   }
+  if (section) section.hidden = false;
   if (tab) tab.hidden = false;
 
   const fillers = (vd.filler_word_list ?? []).slice(0, 6).join(", ") || "None detected";
@@ -1927,8 +2381,30 @@ function openRetryFromPath80() {
 }
 
 document.getElementById("btn-load-sample").addEventListener("click", loadSample);
-document.getElementById("btn-go-setup").addEventListener("click", () => showScreen("startMethod"));
-document.getElementById("btn-back-landing").addEventListener("click", () => showScreen("landing"));
+document.getElementById("btn-load-sample-setup")?.addEventListener("click", loadSample);
+document.getElementById("btn-go-setup").addEventListener("click", () => {
+  resetSetupScreen();
+  showScreen("setup");
+});
+document.getElementById("btn-back-landing").addEventListener("click", () => {
+  resetSetupScreen();
+  showScreen("landing");
+});
+document.getElementById("tab-quick-pitch")?.addEventListener("click", () => setBriefingMode("quick"));
+document.getElementById("tab-advanced-briefing")?.addEventListener("click", () => setBriefingMode("advanced"));
+document.getElementById("btn-structure-pitch")?.addEventListener("click", structurePitch);
+document.getElementById("btn-record-voice-setup")?.addEventListener("click", () => {
+  state.startMode = "voice";
+  showScreen("voicePitch");
+});
+document.getElementById("btn-looks-good-start")?.addEventListener("click", () => {
+  syncBriefToStartupForm();
+  startSession();
+});
+document.getElementById("btn-restructure-pitch")?.addEventListener("click", () => {
+  hideBriefPreview();
+  document.getElementById("quick-pitch-text")?.focus();
+});
 document.getElementById("btn-start-back-landing").addEventListener("click", () => showScreen("landing"));
 
 document.getElementById("btn-start-text").addEventListener("click", () => {
@@ -1945,17 +2421,27 @@ document.getElementById("btn-continue-start").addEventListener("click", () => {
   if (state.startMode === "voice") showScreen("voicePitch");
   else showScreen("setup");
 });
-document.getElementById("btn-voice-pitch-back").addEventListener("click", () => showScreen("startMethod"));
+document.getElementById("btn-voice-pitch-back").addEventListener("click", () => showScreen("setup"));
 document.getElementById("btn-voice-edit-manual").addEventListener("click", () => {
   const form = document.getElementById("voice-extract-form");
   const data = new FormData(form);
-  fillStartupForm(Object.fromEntries(data.entries()));
+  applyVoicePitchToBriefing({
+    extracted: Object.fromEntries(data.entries()),
+    transcript: document.getElementById("voice-confirm-transcript")?.textContent || "",
+    extraction_confidence: "medium",
+  });
+  setBriefingMode("advanced");
   showScreen("setup");
 });
 document.getElementById("btn-voice-looks-right").addEventListener("click", () => {
   const form = document.getElementById("voice-extract-form");
   const data = new FormData(form);
-  fillStartupForm(Object.fromEntries(data.entries()));
+  applyVoicePitchToBriefing({
+    extracted: Object.fromEntries(data.entries()),
+    transcript: document.getElementById("voice-confirm-transcript")?.textContent || "",
+    extraction_confidence: document.getElementById("voice-confirm-confidence")?.textContent?.replace("Confidence: ", "") || "medium",
+    delivery_observations: {},
+  });
   showScreen("setup");
 });
 document.getElementById("btn-voice-turn-send").addEventListener("click", () => {
@@ -1973,11 +2459,15 @@ document.getElementById("btn-voice-turn-send").addEventListener("click", () => {
 document.getElementById("btn-start-battle").addEventListener("click", startSession);
 document.getElementById("btn-end-battle").addEventListener("click", endBattle);
 document.getElementById("btn-reset").addEventListener("click", resetBattle);
-document.getElementById("btn-back-setup").addEventListener("click", () => showScreen("setup"));
+document.getElementById("btn-back-setup")?.addEventListener("click", () => showScreen("setup"));
 document.getElementById("btn-path-to-80").addEventListener("click", openPath80);
 document.getElementById("btn-close-path80").addEventListener("click", closePath80);
 document.getElementById("btn-close-path80-bottom").addEventListener("click", closePath80);
 document.getElementById("btn-retry-question")?.addEventListener("click", openRetryFromPath80);
+document.getElementById("btn-scorecard-retry")?.addEventListener("click", startRetryDrill);
+document.getElementById("btn-prep-retry")?.addEventListener("click", startRetryDrill);
+document.getElementById("btn-answers-retry")?.addEventListener("click", startRetryDrill);
+document.getElementById("btn-answers-new-battle")?.addEventListener("click", resetBattle);
 document.getElementById("path80-overlay").addEventListener("click", (e) => {
   if (e.target === e.currentTarget) closePath80();
 });
@@ -2126,15 +2616,18 @@ function boot() {
   console.log("PitchFight frontend booting...");
   setGlobalLoading(false);
   hideErrorBanner();
+  setBriefingMode("quick");
+  initBriefPreviewEditors();
   initLandingIntro();
+  initScorecardTabs();
 
   initVoiceUI({
     getSessionId: () => state.sessionId,
     getUiMode: () => state.uiMode,
     onPitchComplete: (data) => {
-      state.pendingVoicePitch = data;
       fillVoiceExtractForm(data);
-      showScreen("voiceConfirm");
+      applyVoicePitchToBriefing(data);
+      showScreen("setup");
       hideErrorBanner();
     },
     onTurnComplete: (data) => showVoiceTurnPreview(data),

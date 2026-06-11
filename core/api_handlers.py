@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from typing import Any
 
 from dotenv import load_dotenv
@@ -30,6 +31,7 @@ from core.deal_verdict import build_judge_verdict
 from core.deal_phase import start_deal_phase
 from core.deal_flow import next_deal_round
 from core.deal_scoring_engine import generate_deal_scorecard
+from core.json_utils import parse_model_json
 
 load_dotenv()
 
@@ -728,6 +730,231 @@ def handle_reset_session(payload: dict[str, Any]) -> dict[str, Any]:
     session_id = payload.get("session_id", "")
     session_manager.reset_session(session_id)
     return {"status": "reset"}
+
+
+_STARTUP_CONTEXT_FIELDS = (
+    "name",
+    "problem",
+    "target_users",
+    "solution",
+    "why_ai",
+    "traction",
+    "competitors",
+    "ask",
+)
+
+_STRUCTURE_PITCH_PROMPT = """You are structuring a founder's spoken or written startup pitch for a pitch battle app.
+
+Extract ONLY what the founder actually said or wrote.
+Do not hallucinate traction, competitors, funding, or users.
+If a field was not mentioned, use an empty string and list it in missing_fields.
+
+Return ONLY valid JSON.
+First character must be {.
+Last character must be }.
+No markdown.
+No explanation.
+No reasoning.
+
+Required JSON:
+{
+"startup_context": {
+"name": "",
+"problem": "",
+"target_users": "",
+"solution": "",
+"why_ai": "",
+"traction": "",
+"competitors": "",
+"ask": ""
+},
+"missing_fields": [],
+"confidence": "low",
+"brief_summary": ""
+}
+
+confidence must be one of: low, medium, high
+brief_summary: one sentence summary of the pitch in the founder's words."""
+
+
+def _normalize_startup_context(raw: dict[str, Any] | None) -> dict[str, str]:
+    ctx = raw if isinstance(raw, dict) else {}
+    return {field: str(ctx.get(field, "")).strip() for field in _STARTUP_CONTEXT_FIELDS}
+
+
+def _missing_startup_fields(ctx: dict[str, str]) -> list[str]:
+    return [field for field in _STARTUP_CONTEXT_FIELDS if not ctx.get(field)]
+
+
+def _confidence_from_fill(ctx: dict[str, str]) -> str:
+    filled = sum(1 for field in _STARTUP_CONTEXT_FIELDS if ctx.get(field))
+    if filled >= 5:
+        return "high"
+    if filled >= 3:
+        return "medium"
+    return "low"
+
+
+def _structure_pitch_local_fallback(pitch_text: str) -> dict[str, Any]:
+    """Heuristic extraction when Nemotron is unavailable."""
+    text = pitch_text.strip()
+    lower = text.lower()
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
+    ctx = {field: "" for field in _STARTUP_CONTEXT_FIELDS}
+
+    name_patterns = [
+        r"(?:called|named)\s+([A-Z][A-Za-z0-9]+(?:\s+[A-Z][A-Za-z0-9]+){0,3})",
+        r"(?:building|build|creating|launching)\s+([A-Z][A-Za-z0-9]+(?:\s+[A-Z][A-Za-z0-9]+){0,2})",
+        r"\b([A-Z][A-Za-z0-9]*(?:\s+[A-Z][A-Za-z0-9]*){0,2}\s+AI)\b",
+        r"(?:we(?:'re| are))\s+([A-Z][A-Za-z0-9]+(?:\s+[A-Z][A-Za-z0-9]+){0,2})",
+    ]
+    for pattern in name_patterns:
+        match = re.search(pattern, text)
+        if match:
+            ctx["name"] = match.group(1).strip()
+            break
+
+    problem_kw = ("problem", "pain", "miss", "struggle", "hard to", "difficult", "scattered", "frustrat")
+    for sentence in sentences:
+        sl = sentence.lower()
+        if any(kw in sl for kw in problem_kw):
+            ctx["problem"] = sentence
+            break
+
+    user_kw = ("students", "founders", "users", "customers", "developers", "teams", "college")
+    for sentence in sentences:
+        sl = sentence.lower()
+        if any(kw in sl for kw in user_kw):
+            ctx["target_users"] = sentence
+            break
+    if not ctx["target_users"]:
+        for kw in user_kw:
+            if kw in lower:
+                ctx["target_users"] = f"Targeting {kw}."
+                break
+
+    solution_kw = ("we build", "we're building", "we are building", "platform", "app", "product", "tool")
+    for sentence in sentences:
+        sl = sentence.lower()
+        if any(kw in sl for kw in solution_kw):
+            ctx["solution"] = sentence
+            break
+
+    if "ai" in lower or "machine learning" in lower or "model" in lower:
+        for sentence in sentences:
+            sl = sentence.lower()
+            if "ai" in sl or "model" in sl or "machine learning" in sl:
+                ctx["why_ai"] = sentence
+                break
+        if not ctx["why_ai"]:
+            ctx["why_ai"] = "Uses AI as described in the pitch."
+
+    traction_patterns = [
+        r"\b\d[\d,]*\+?\s*(?:users|students|customers|signups|downloads|pilots?)\b",
+        r"\b(?:tested with|pilot with|revenue|mrr|arr)\b[^.?!]*[.?!]?",
+        r"\b\d+%\b[^.?!]*[.?!]?",
+    ]
+    for pattern in traction_patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            ctx["traction"] = match.group(0).strip().rstrip(".")
+            break
+
+    competitor_kw = ("competitor", "versus", " vs ", "compared to", "alternative", "luma", "linkedin")
+    for sentence in sentences:
+        sl = sentence.lower()
+        if any(kw in sl for kw in competitor_kw):
+            ctx["competitors"] = sentence
+            break
+
+    ask_kw = ("funding", "invest", "mentor", "pilot", "sponsor", "partnership", "raise", "support")
+    for sentence in sentences:
+        sl = sentence.lower()
+        if any(kw in sl for kw in ask_kw):
+            ctx["ask"] = sentence
+            break
+
+    missing = _missing_startup_fields(ctx)
+    summary = " ".join(sentences[:2])[:220] if sentences else text[:220]
+
+    return {
+        "ok": True,
+        "startup_context": ctx,
+        "missing_fields": missing,
+        "confidence": _confidence_from_fill(ctx),
+        "brief_summary": summary,
+        "source": "local_fallback",
+    }
+
+
+def _parse_structure_pitch_response(raw: str) -> dict[str, Any] | None:
+    parsed, _ = parse_model_json(raw)
+    if not isinstance(parsed, dict):
+        return None
+
+    ctx = _normalize_startup_context(parsed.get("startup_context"))
+    missing = parsed.get("missing_fields")
+    if not isinstance(missing, list):
+        missing = _missing_startup_fields(ctx)
+    else:
+        missing = [str(f).strip() for f in missing if str(f).strip() in _STARTUP_CONTEXT_FIELDS]
+
+    confidence = str(parsed.get("confidence", "")).strip().lower()
+    if confidence not in ("low", "medium", "high"):
+        confidence = _confidence_from_fill(ctx)
+
+    summary = str(parsed.get("brief_summary", "")).strip()
+    if not summary:
+        summary = ctx.get("solution") or ctx.get("problem") or ""
+
+    return {
+        "startup_context": ctx,
+        "missing_fields": missing,
+        "confidence": confidence,
+        "brief_summary": summary,
+    }
+
+
+def handle_structure_pitch(payload: dict[str, Any]) -> dict[str, Any]:
+    """Structure free-form pitch text into startup_context fields."""
+    pitch_text = str(payload.get("pitch_text", "")).strip()
+    if not pitch_text:
+        return {"ok": False, "error": "pitch_text is required and must be non-empty."}
+
+    if len(pitch_text) < 20:
+        return {"ok": False, "error": "pitch_text is too short. Add a few more details about your startup."}
+
+    model_mode = payload.get("model_mode", "premium_nvidia")
+    messages = [
+        {"role": "system", "content": _STRUCTURE_PITCH_PROMPT},
+        {"role": "user", "content": f"Founder pitch:\n\n{pitch_text[:6000]}"},
+    ]
+
+    try:
+        result = model_router.generate_structure_pitch_response(messages, model_mode=model_mode)
+        if result.get("ok") and result.get("content"):
+            structured = _parse_structure_pitch_response(result["content"])
+            if structured is None:
+                repair = model_router.generate_structure_pitch_repair_response(
+                    result["content"], model_mode=model_mode
+                )
+                if repair.get("ok") and repair.get("content"):
+                    structured = _parse_structure_pitch_response(repair["content"])
+
+            if structured is not None:
+                return {
+                    "ok": True,
+                    "startup_context": structured["startup_context"],
+                    "missing_fields": structured["missing_fields"],
+                    "confidence": structured["confidence"],
+                    "brief_summary": structured["brief_summary"],
+                    "source": "nemotron",
+                }
+            logger.warning("structure_pitch: Nemotron returned unparseable JSON — using local fallback")
+    except Exception as exc:
+        logger.warning("structure_pitch: Nemotron call failed — using local fallback: %s", exc)
+
+    return _structure_pitch_local_fallback(pitch_text)
 
 
 def handle_voice_pitch(payload: dict[str, Any]) -> dict[str, Any]:

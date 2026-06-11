@@ -598,6 +598,35 @@ def _call_nvidia_repair_mode(
         return {"ok": False, "model_mode": mode, "provider": "nvidia", "content": "", "error": str(exc)}
 
 
+def generate_structure_pitch_response(
+    messages: list[dict[str, str]],
+    model_mode: str | None = None,
+) -> dict[str, Any]:
+    """Extract structured startup_context from free-form pitch text."""
+    return _call_nvidia_json_mode(messages, "structure_pitch", model_mode, "structure pitch")
+
+
+def generate_structure_pitch_repair_response(
+    raw_bad_content: str,
+    model_mode: str | None = None,
+) -> dict[str, Any]:
+    repair_messages = [
+        {
+            "role": "system",
+            "content": (
+                "Convert input to JSON. Return ONLY valid JSON.\n"
+                '{"startup_context":{"name":"","problem":"","target_users":"",'
+                '"solution":"","why_ai":"","traction":"","competitors":"","ask":""},'
+                '"missing_fields":[],"confidence":"low","brief_summary":""}'
+            ),
+        },
+        {"role": "user", "content": "Output JSON only:\n\n" + raw_bad_content[:4000]},
+    ]
+    return _call_nvidia_repair_mode(
+        repair_messages, "structure_pitch_repair", model_mode, "structure pitch"
+    )
+
+
 def generate_deal_verdict_response(
     messages: list[dict[str, str]],
     model_mode: str | None = None,

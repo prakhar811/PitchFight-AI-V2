@@ -206,6 +206,20 @@ _TASK_DEFAULTS: dict[str, dict[str, Any]] = {
         "temperature": 0.0,
         "top_p": 0.95,
     },
+    "structure_pitch": {
+        "enable_thinking": False,
+        "reasoning_budget": 0,
+        "max_tokens": 900,
+        "temperature": 0.1,
+        "top_p": 0.95,
+    },
+    "structure_pitch_repair": {
+        "enable_thinking": False,
+        "reasoning_budget": 0,
+        "max_tokens": 800,
+        "temperature": 0.0,
+        "top_p": 0.95,
+    },
 }
 
 _VALID_AUDIO_FORMATS = frozenset({"webm", "wav", "mp3", "m4a", "ogg"})

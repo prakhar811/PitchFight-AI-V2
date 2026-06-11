@@ -23,6 +23,7 @@ from core.api_handlers import (
     handle_retry_weakest_submit,
     handle_start_deal_phase,
     handle_start_session,
+    handle_structure_pitch,
     handle_voice_pitch,
     handle_voice_turn,
 )
@@ -60,6 +61,11 @@ def api_load_sample() -> dict[str, Any]:
 @app.post("/api/start-session")
 def api_start_session(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
     return handle_start_session(payload)
+
+
+@app.post("/api/structure-pitch")
+def api_structure_pitch(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    return handle_structure_pitch(payload)
 
 
 @app.post("/api/chat-round")
