@@ -128,6 +128,19 @@ def start_retry_drill(session: dict) -> dict[str, Any]:
     )
     difficulty_label = session.get("difficulty_label") or get_label(difficulty_profile)
 
+    # Snapshot the scorecard baseline at drill-creation time so that any later
+    # scorecard mutation (or session reload) cannot shift the projection baseline.
+    sc_scores = scorecard.get("scores") or {}
+    original_overall_score = int(scorecard.get("overall", 0) or 0)
+    original_dimension_scores = {
+        k: int(v.get("score", 0) or 0)
+        for k, v in sc_scores.items()
+        if isinstance(v, dict)
+    }
+    dim_score_before = original_dimension_scores.get(
+        dimension, _dimension_score(scorecard, dimension)
+    )
+
     retry_id = str(uuid.uuid4())
     drill = {
         "retry_id": retry_id,
@@ -143,7 +156,10 @@ def start_retry_drill(session: dict) -> dict[str, Any]:
         "input_mode": "",
         "retry_answer": "",
         "result": {},
-        "dimension_score_before": _dimension_score(scorecard, dimension),
+        "dimension_score_before": dim_score_before,
+        # Authoritative baseline — never re-read from session after this point.
+        "original_overall_score": original_overall_score,
+        "original_dimension_scores": original_dimension_scores,
     }
     session.setdefault("retry_drills", {})[retry_id] = drill
 
@@ -380,6 +396,90 @@ def call_nemotron_retry_comparison(
         return None
 
 
+def compute_retry_projection(
+    session: dict,
+    drill: dict,
+    comparison: dict,
+) -> dict[str, Any]:
+    """Non-destructive training projection — original scorecard stays unchanged.
+
+    Uses the baseline snapshotted onto the drill at start_retry_drill time so that
+    any scorecard mutation between drill-start and drill-submit cannot corrupt the
+    displayed baseline (the bug was: practice-nudge stripped by a later resync left
+    scorecard["overall"]=28 while the UI showed 31 from the original API response).
+    """
+    scorecard = session.get("latest_scorecard") or {}
+    dim = str(drill.get("dimension", "")).strip()
+
+    # --- Authoritative baseline: prefer drill snapshot, fall back to live session ---
+    original_overall = int(
+        drill.get("original_overall_score")
+        if drill.get("original_overall_score") is not None
+        else (scorecard.get("overall", 0) or 0)
+    )
+
+    # Use snapshotted dimension scores; fall back to live scorecard scores.
+    original_dim_scores: dict[str, int] = drill.get("original_dimension_scores") or {}
+    if not original_dim_scores:
+        scores = scorecard.get("scores") or {}
+        original_dim_scores = {
+            k: int(v.get("score", 0) or 0)
+            for k, v in scores.items() if isinstance(v, dict)
+        }
+
+    # --- Old dimension score for this specific target ---
+    old_dim_score = int(
+        original_dim_scores.get(
+            dim,
+            drill.get("dimension_score_before", 0) or 0,
+        )
+    )
+
+    # --- New dimension score from Nemotron/fallback comparison ---
+    try:
+        raw_new = int(comparison.get("estimated_dimension_after", old_dim_score))
+    except (TypeError, ValueError):
+        raw_new = old_dim_score
+
+    # Never allow the new score to appear lower than the old score in the projection.
+    new_dim_score = max(old_dim_score, raw_new)
+    dimension_delta = new_dim_score - old_dim_score
+
+    if dimension_delta > 0:
+        # Replace only the target dimension; all others stay at their original values.
+        projected_scores = dict(original_dim_scores)
+        projected_scores[dim] = new_dim_score
+
+        n_dims = len(projected_scores) or 1
+        dim_avg_projection = round(sum(projected_scores.values()) / n_dims)
+
+        # Proportional lift ensures even a single-dim improvement is visible when
+        # the raw average is still dragged down by other weak dims.
+        proportional_lift = max(1, round(dimension_delta / n_dims))
+
+        projected_overall = max(
+            dim_avg_projection,
+            original_overall,
+            min(100, original_overall + proportional_lift),
+        )
+        projected_overall_delta = max(0, projected_overall - original_overall)
+    else:
+        projected_overall = original_overall
+        projected_overall_delta = 0
+
+    return {
+        "target_dimension": dim,
+        "old_dimension_score": old_dim_score,
+        "new_dimension_score": new_dim_score,
+        "dimension_delta": dimension_delta,
+        "original_overall_score": original_overall,
+        "projected_overall_score": projected_overall,
+        "projected_overall_delta": projected_overall_delta,
+        "original_scorecard_unchanged": True,
+        "projection_method": "replace_target_dimension_only",
+    }
+
+
 def apply_retry_to_scorecard(
     session: dict,
     drill: dict,
@@ -486,18 +586,26 @@ def evaluate_retry_answer(
     if voice_turn_id:
         drill["voice_turn_id"] = voice_turn_id
 
-    comparison_result = call_nemotron_retry_comparison(session, drill, answer)
-    if comparison_result is None:
+    nemotron_result = call_nemotron_retry_comparison(session, drill, answer)
+    if nemotron_result is not None:
+        comparison_result = nemotron_result
+        retry_score_source = "nemotron"
+        model_ok = True
+        fallback_reason = ""
+    else:
         comparison_result = build_local_retry_fallback(
             drill.get("original_answer", ""),
             answer,
             drill.get("dimension", "objection_handling"),
             drill.get("dimension_score_before", 30),
         )
+        retry_score_source = "local_fallback"
+        model_ok = False
+        fallback_reason = "Nemotron unavailable — local heuristic used"
 
     drill["result"] = comparison_result
     comp = comparison_result.get("comparison", {})
-    updated_scorecard = apply_retry_to_scorecard(session, drill, comp)
+    projection = compute_retry_projection(session, drill, comp)
 
     response: dict[str, Any] = {
         "session_id": session_id,
@@ -509,14 +617,11 @@ def evaluate_retry_answer(
         "original_answer": drill.get("original_answer", ""),
         "retry_answer": answer,
         "comparison": comp,
+        "projection": projection,
         "next_practice_prompt": comparison_result.get("next_practice_prompt", ""),
+        "scorecard_unchanged": True,
+        "retry_score_source": retry_score_source,
+        "model_ok": model_ok,
+        "fallback_reason": fallback_reason,
     }
-    if updated_scorecard:
-        response["updated_scorecard"] = updated_scorecard
-        try:
-            verdict = build_judge_verdict(session, updated_scorecard, local_only=True)
-            session["judge_verdict"] = verdict
-            response["judge_verdict"] = verdict
-        except Exception as exc:
-            logger.warning("retry_handler: could not refresh judge verdict — %s", exc)
     return response

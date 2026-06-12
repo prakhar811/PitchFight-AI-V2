@@ -50,66 +50,78 @@ class OmniAudioError(RuntimeError):
 #   rewrite                   — rewrite utility (thinking on, lighter budget)
 #   legacy_full_scorecard     — diagnostic / legacy path only; not main path (thinking off)
 _TASK_DEFAULTS: dict[str, dict[str, Any]] = {
+    # Thinking modes: reasoning_budget=320 — enough room to think cleanly without
+    # spilling monologue into content, while leaving 1180 tokens for real output.
     "opponent": {
         "enable_thinking": True,
-        "reasoning_budget": 512,
-        "max_tokens": 900,
+        "reasoning_budget": 320,
+        "max_tokens": 1500,
         "temperature": 0.65,
         "top_p": 0.95,
     },
+    "deal_round": {
+        "enable_thinking": True,
+        "reasoning_budget": 320,
+        "max_tokens": 1500,
+        "temperature": 0.65,
+        "top_p": 0.95,
+    },
+    "rewrite": {
+        "enable_thinking": True,
+        "reasoning_budget": 320,
+        "max_tokens": 1200,
+        "temperature": 0.45,
+        "top_p": 0.95,
+    },
+    # Scoring modes (thinking off — pure JSON output).
+    # max_tokens raised well above realistic output size so late-round battles
+    # with long conversation history never truncate mid-JSON.
     "scorecard_scoring": {
-        "enable_thinking": False,
-        "reasoning_budget": 0,
-        "max_tokens": 1700,
-        "temperature": 0.1,
-        "top_p": 0.95,
-    },
-    "scorecard_scoring_repair": {
-        "enable_thinking": False,
-        "reasoning_budget": 0,
-        "max_tokens": 1400,
-        "temperature": 0.0,
-        "top_p": 0.95,
-    },
-    "scorecard_full": {
         "enable_thinking": False,
         "reasoning_budget": 0,
         "max_tokens": 2500,
         "temperature": 0.1,
         "top_p": 0.95,
     },
+    "scorecard_scoring_repair": {
+        "enable_thinking": False,
+        "reasoning_budget": 0,
+        "max_tokens": 2000,
+        "temperature": 0.0,
+        "top_p": 0.95,
+    },
+    "scorecard_full": {
+        "enable_thinking": False,
+        "reasoning_budget": 0,
+        "max_tokens": 3500,
+        "temperature": 0.1,
+        "top_p": 0.95,
+    },
     "scorecard_full_repair": {
         "enable_thinking": False,
         "reasoning_budget": 0,
-        "max_tokens": 2200,
+        "max_tokens": 3000,
         "temperature": 0.0,
         "top_p": 0.95,
     },
     "scorecard_coaching": {
         "enable_thinking": False,
         "reasoning_budget": 0,
-        "max_tokens": 2400,
+        "max_tokens": 3200,
         "temperature": 0.2,
         "top_p": 0.95,
     },
     "scorecard_coaching_repair": {
         "enable_thinking": False,
         "reasoning_budget": 0,
-        "max_tokens": 1600,
+        "max_tokens": 2400,
         "temperature": 0.0,
-        "top_p": 0.95,
-    },
-    "rewrite": {
-        "enable_thinking": True,
-        "reasoning_budget": 256,
-        "max_tokens": 900,
-        "temperature": 0.45,
         "top_p": 0.95,
     },
     "legacy_full_scorecard": {
         "enable_thinking": False,
         "reasoning_budget": 0,
-        "max_tokens": 3000,
+        "max_tokens": 4000,
         "temperature": 0.1,
         "top_p": 0.95,
     },
@@ -123,71 +135,64 @@ _TASK_DEFAULTS: dict[str, dict[str, Any]] = {
     "voice_extraction_repair": {
         "enable_thinking": False,
         "reasoning_budget": 0,
-        "max_tokens": 1200,
+        "max_tokens": 1400,
         "temperature": 0.0,
         "top_p": 0.95,
     },
     "voice_turn": {
         "enable_thinking": False,
         "reasoning_budget": 0,
-        "max_tokens": 700,
+        "max_tokens": 800,
         "temperature": 0.0,
         "top_p": 0.95,
     },
     "voice_turn_repair": {
         "enable_thinking": False,
         "reasoning_budget": 0,
-        "max_tokens": 600,
+        "max_tokens": 700,
         "temperature": 0.0,
         "top_p": 0.95,
     },
     "retry_comparison": {
         "enable_thinking": False,
         "reasoning_budget": 0,
-        "max_tokens": 1000,
+        "max_tokens": 1500,
         "temperature": 0.15,
         "top_p": 0.95,
     },
     "retry_comparison_repair": {
         "enable_thinking": False,
         "reasoning_budget": 0,
-        "max_tokens": 800,
+        "max_tokens": 1200,
         "temperature": 0.0,
         "top_p": 0.95,
     },
     "deal_verdict": {
         "enable_thinking": False,
         "reasoning_budget": 0,
-        "max_tokens": 1000,
+        "max_tokens": 1500,
         "temperature": 0.2,
         "top_p": 0.95,
     },
     "deal_verdict_repair": {
         "enable_thinking": False,
         "reasoning_budget": 0,
-        "max_tokens": 800,
+        "max_tokens": 1200,
         "temperature": 0.0,
-        "top_p": 0.95,
-    },
-    "deal_round": {
-        "enable_thinking": True,
-        "reasoning_budget": 512,
-        "max_tokens": 900,
-        "temperature": 0.65,
         "top_p": 0.95,
     },
     # Deal phase: semantic dimension scoring (JSON, split call 1 — scores only)
     "deal_scorecard_scoring": {
         "enable_thinking": False,
         "reasoning_budget": 0,
-        "max_tokens": 1700,
+        "max_tokens": 2500,
         "temperature": 0.1,
         "top_p": 0.95,
     },
     "deal_scorecard_scoring_repair": {
         "enable_thinking": False,
         "reasoning_budget": 0,
-        "max_tokens": 1300,
+        "max_tokens": 2000,
         "temperature": 0.0,
         "top_p": 0.95,
     },
@@ -195,28 +200,28 @@ _TASK_DEFAULTS: dict[str, dict[str, Any]] = {
     "deal_scorecard_coaching": {
         "enable_thinking": False,
         "reasoning_budget": 0,
-        "max_tokens": 2200,
+        "max_tokens": 3000,
         "temperature": 0.2,
         "top_p": 0.95,
     },
     "deal_scorecard_repair": {
         "enable_thinking": False,
         "reasoning_budget": 0,
-        "max_tokens": 1200,
+        "max_tokens": 2000,
         "temperature": 0.0,
         "top_p": 0.95,
     },
     "structure_pitch": {
         "enable_thinking": False,
         "reasoning_budget": 0,
-        "max_tokens": 900,
-        "temperature": 0.1,
+        "max_tokens": 1000,
+        "temperature": 0.0,
         "top_p": 0.95,
     },
     "structure_pitch_repair": {
         "enable_thinking": False,
         "reasoning_budget": 0,
-        "max_tokens": 800,
+        "max_tokens": 900,
         "temperature": 0.0,
         "top_p": 0.95,
     },
@@ -263,6 +268,66 @@ def _extract_json_from_reasoning(reasoning: str) -> str | None:
     if start != -1 and end != -1 and end > start:
         return reasoning[start : end + 1].strip()
     return None
+
+
+# Phrases that only appear in internal reasoning monologue, never in a real response.
+_REASONING_LEAK_SIGNALS = (
+    "need to keep under",
+    "check constraints",
+    "that's one sentence",
+    "actually it's",
+    "make sure we reference",
+    "under 3 sentences",
+    "the question itself",
+    "so okay.",
+    "let me ",
+    "i need to ",
+    "i should ",
+    "i'll ask",
+    "i will ask",
+    "one question,",
+    "plain language.",
+    "no advice,",
+    "no compliments,",
+)
+
+
+def _strip_reasoning_leak(content: str) -> str:
+    """Remove internal monologue that leaked into content for thinking-mode calls.
+
+    When reasoning_budget is insufficient the model continues "thinking" inside
+    the content field before reaching the actual response.  This function detects
+    that pattern and returns only the final intended output (the last question).
+    """
+    lower = content.lower()
+    if not any(sig in lower for sig in _REASONING_LEAK_SIGNALS):
+        return content
+
+    # Reasoning leaked — extract the last real sentence(s).
+    # Split on sentence boundaries and walk backwards to find the last
+    # question, which is the intended output.
+    import re
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", content) if s.strip()]
+    if not sentences:
+        return content
+
+    # Find the last sentence ending with "?"
+    for i in range(len(sentences) - 1, -1, -1):
+        if sentences[i].endswith("?"):
+            # Include the sentence before it (context) if it's clean prose
+            if i > 0 and not any(sig in sentences[i - 1].lower() for sig in _REASONING_LEAK_SIGNALS):
+                return f"{sentences[i - 1]} {sentences[i]}"
+            return sentences[i]
+
+    # No question mark found — return the last non-reasoning sentence
+    for sent in reversed(sentences):
+        if not any(sig in sent.lower() for sig in _REASONING_LEAK_SIGNALS):
+            return sent
+
+    # Couldn't isolate anything clean — raise so the caller serves its fallback
+    # message instead of showing garbage to the user.
+    logger.warning("_strip_reasoning_leak: could not isolate clean output, raising for caller fallback")
+    raise RuntimeError("Reasoning leaked into content and could not be cleaned (mode content fully contaminated)")
 
 
 def _get_config() -> tuple[str, str, str]:
@@ -357,6 +422,7 @@ def _complete_chat(
 
     if not content:
         if mode in _JSON_MODES and reasoning:
+            # JSON mode: try to salvage a JSON block from the reasoning field.
             extracted = _extract_json_from_reasoning(reasoning)
             if extracted:
                 logger.info(
@@ -366,21 +432,31 @@ def _complete_chat(
                 content = extracted
             else:
                 logger.warning(
-                    "Nemotron content empty; checked reasoning_content fallback (mode=%s, no JSON found)",
+                    "Nemotron content empty; no JSON in reasoning_content (mode=%s)",
                     mode,
                 )
-        elif reasoning:
+        else:
+            # Non-JSON mode (opponent, deal_round, rewrite, …):
+            # reasoning_content is the model's compressed internal thinking —
+            # it is NEVER safe to display.  Let it raise so the caller serves
+            # its own clean fallback message.
             logger.warning(
-                "Nemotron content empty; checked reasoning_content fallback (mode=%s)",
+                "Nemotron content empty for non-JSON mode=%s; "
+                "reasoning_content not usable as output — raising for caller fallback",
                 mode,
             )
-            content = reasoning
 
     if not content:
         raise RuntimeError(
-            "NVIDIA model returned an empty response. "
-            "The reasoning model may need a larger max_tokens budget."
+            f"Nemotron returned empty content (mode={mode}). "
+            "Caller should serve its fallback."
         )
+
+    # For thinking-mode calls (opponent, deal_round, rewrite) strip any internal
+    # monologue that leaked into the content field when reasoning_budget runs short.
+    if enable_thinking and mode not in _JSON_MODES:
+        content = _strip_reasoning_leak(content)
+
     return content
 
 

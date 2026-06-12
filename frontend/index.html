@@ -19,6 +19,7 @@
     <!-- Landing — Founder Pressure Arena (Pass 1) -->
     <section id="screen-landing" class="screen active">
       <div class="arena-landing">
+        <canvas id="pfFallCanvas" aria-hidden="true" style="position:absolute;inset:0;z-index:1;pointer-events:none;opacity:0.45;width:100%;height:100%;"></canvas>
         <div class="arena-scene" aria-hidden="true">
           <div class="arena-scene-base"></div>
           <div class="hero-center-haze"></div>
@@ -234,26 +235,34 @@
       </div>
     </section>
 
-    <!-- Start method -->
-    <section id="screen-start-method" class="screen">
-      <div class="panel glass">
-        <div class="panel-header">
-          <h2>How do you want to start?</h2>
-          <button id="btn-start-back-landing" class="btn btn-ghost">Back</button>
-        </div>
-        <div class="start-method-grid">
-          <button id="btn-start-text" class="start-method-card selected" type="button">
-            <span class="start-method-icon">✎</span>
+    <!-- Start method — entry path chooser -->
+    <section id="screen-start-method" class="screen screen-start-path">
+      <div class="start-path-shell">
+        <header class="start-path-header">
+          <div class="start-path-header-main">
+            <p class="results-eyebrow">Pre-Fight Briefing</p>
+            <h2 class="start-path-title">Choose your entry mode</h2>
+            <p class="start-path-sub">Same arena — two ways in. Both lead to your structured brief.</p>
+          </div>
+          <button id="btn-start-back-landing" class="btn btn-ghost" type="button">Back</button>
+        </header>
+
+        <div class="start-method-grid start-path-grid">
+          <button id="btn-start-text" class="start-method-card start-path-card start-path-card-text" type="button">
+            <span class="start-path-badge">Mode 01</span>
+            <span class="start-method-icon" aria-hidden="true">✎</span>
             <h3>Fill Details</h3>
-            <p>Type your startup context manually.</p>
+            <p class="start-path-tagline">Written Briefing</p>
+            <p class="start-path-desc">Type or paste your pitch. AI structures it into a founder brief before the judge attacks.</p>
           </button>
-          <button id="btn-start-voice" class="start-method-card" type="button">
-            <span class="start-method-icon voice-icon">🎙</span>
-            <h3>Pitch First</h3>
-            <p>Speak a 60–90 second pitch and let AI extract the details.</p>
+          <button id="btn-start-voice" class="start-method-card start-path-card start-path-card-voice" type="button">
+            <span class="start-path-badge start-path-badge-voice">Mode 02</span>
+            <span class="start-method-icon voice-icon" aria-hidden="true">🎙</span>
+            <h3>Voice Mode</h3>
+            <p class="start-path-tagline">Live Pitch Capture</p>
+            <p class="start-path-desc">Speak for 60–90 seconds. AI transcribes, extracts, and structures your startup brief.</p>
           </button>
         </div>
-        <button id="btn-continue-start" class="btn btn-primary btn-wide">Continue</button>
       </div>
     </section>
 
@@ -335,7 +344,7 @@
               <textarea
                 id="quick-pitch-text"
                 class="quick-pitch-textarea"
-                rows="9"
+                rows="5"
                 placeholder="We're building EventRadar AI for students who miss hackathons because events are scattered across WhatsApp, LinkedIn, and college groups. We collect events in one place and recommend the best ones based on student interests. We tested with 80 students and want mentorship and pilot support."
               ></textarea>
               <div class="quick-pitch-actions">
@@ -345,15 +354,13 @@
                   <button id="btn-load-sample-setup" class="btn btn-secondary" type="button">Load Demo Founder</button>
                 </div>
               </div>
-              <p id="structure-pitch-hint" class="quick-pitch-hint" hidden></p>
             </div>
 
-            <!-- AI brief preview -->
+            <!-- AI brief preview — shown after Structure My Pitch (replaces quick pitch panel) -->
             <div id="brief-preview-panel" class="panel glass briefing-panel brief-preview-panel" hidden>
               <div class="brief-preview-header">
                 <div class="brief-preview-title-row">
                   <h3 class="briefing-section-title">AI-Structured Founder Brief</h3>
-                  <span id="brief-preview-confidence" class="brief-confidence-chip"></span>
                 </div>
                 <p class="brief-preview-helper">AI extracted this from your pitch. Review and confirm.</p>
                 <p id="brief-preview-hint" class="brief-preview-hint" hidden></p>
@@ -375,7 +382,7 @@
                   <p class="brief-read-value is-empty">Not specified</p>
                   <input type="text" name="target_users" class="brief-read-input" hidden />
                 </div>
-                <div class="brief-read-card brief-read-wide" data-field="problem">
+                <div class="brief-read-card brief-read-short" data-field="problem">
                   <div class="brief-read-head">
                     <span class="brief-read-label">Problem</span>
                     <button type="button" class="brief-read-edit" aria-label="Edit Problem">✎</button>
@@ -383,7 +390,7 @@
                   <p class="brief-read-value is-empty">Not specified</p>
                   <textarea name="problem" class="brief-read-input brief-read-textarea" rows="2" hidden></textarea>
                 </div>
-                <div class="brief-read-card brief-read-wide" data-field="solution">
+                <div class="brief-read-card brief-read-short" data-field="solution">
                   <div class="brief-read-head">
                     <span class="brief-read-label">Solution</span>
                     <button type="button" class="brief-read-edit" aria-label="Edit Solution">✎</button>
@@ -391,7 +398,7 @@
                   <p class="brief-read-value is-empty">Not specified</p>
                   <textarea name="solution" class="brief-read-input brief-read-textarea" rows="2" hidden></textarea>
                 </div>
-                <div class="brief-read-card brief-read-wide" data-field="why_ai">
+                <div class="brief-read-card brief-read-short" data-field="why_ai">
                   <div class="brief-read-head">
                     <span class="brief-read-label">Why AI</span>
                     <button type="button" class="brief-read-edit" aria-label="Edit Why AI">✎</button>
@@ -430,32 +437,17 @@
               </div>
             </div>
 
-            <!-- Advanced Briefing (tab only — no duplicate collapsed section) -->
+            <!-- Advanced Briefing (compact grid — matches structured brief layout) -->
             <div id="panel-advanced-briefing" class="panel glass briefing-panel advanced-briefing-panel" hidden>
-              <p class="advanced-briefing-helper">Want full control? Edit every field manually.</p>
-              <form id="startup-form" class="startup-form briefing-form">
-                <div class="briefing-group">
-                  <label>Name<input name="name" type="text" placeholder="EventRadar AI" /></label>
-                </div>
-                <div class="briefing-group briefing-group-problem">
-                  <h4 class="briefing-group-label">Problem + Users</h4>
-                  <label>Problem<textarea name="problem" rows="3" placeholder="What pain are you solving?"></textarea></label>
-                  <label>Target Users<input name="target_users" type="text" placeholder="Who feels this pain most?" /></label>
-                </div>
-                <div class="briefing-group briefing-group-solution">
-                  <h4 class="briefing-group-label">Solution + Why AI</h4>
-                  <label>Solution<textarea name="solution" rows="3" placeholder="What do you build?"></textarea></label>
-                  <label>Why AI<textarea name="why_ai" rows="2" placeholder="Why AI instead of rules or manual work?"></textarea></label>
-                </div>
-                <div class="briefing-group briefing-group-traction">
-                  <h4 class="briefing-group-label">Traction + Competitors</h4>
-                  <label>Competitors<input name="competitors" type="text" placeholder="Who else solves this?" /></label>
-                  <label>Traction<input name="traction" type="text" placeholder="Users, pilots, revenue, demos…" /></label>
-                </div>
-                <div class="briefing-group briefing-group-ask">
-                  <h4 class="briefing-group-label">Ask / Desired Outcome</h4>
-                  <label>Ask<input name="ask" type="text" placeholder="Funding, pilot, mentorship, sponsorship…" /></label>
-                </div>
+              <form id="startup-form" class="startup-form briefing-form advanced-briefing-form">
+                <label class="adv-field adv-field-wide">Name<input name="name" type="text" placeholder="EventRadar AI" /></label>
+                <label class="adv-field">Problem<textarea name="problem" rows="2" placeholder="What pain are you solving?"></textarea></label>
+                <label class="adv-field">Target Users<input name="target_users" type="text" placeholder="Who feels this pain most?" /></label>
+                <label class="adv-field">Solution<textarea name="solution" rows="2" placeholder="What do you build?"></textarea></label>
+                <label class="adv-field">Why AI<textarea name="why_ai" rows="2" placeholder="Why AI instead of rules or manual work?"></textarea></label>
+                <label class="adv-field">Competitors<input name="competitors" type="text" placeholder="Who else solves this?" /></label>
+                <label class="adv-field">Traction<input name="traction" type="text" placeholder="Users, pilots, revenue, demos…" /></label>
+                <label class="adv-field adv-field-wide">Ask<input name="ask" type="text" placeholder="Funding, pilot, mentorship, sponsorship…" /></label>
               </form>
             </div>
           </div>
@@ -750,8 +742,8 @@
             <div class="sc-ring-wrap">
               <div class="score-orb sc-ring" aria-label="Overall pitch score">
                 <strong id="overall-score" class="score-orb-value">0</strong>
-                <span id="overall-label" class="score-orb-label"></span>
               </div>
+              <span id="overall-label" class="score-orb-label sc-ring-caption"></span>
             </div>
             <div class="sc-hero-meta">
               <p id="sc-hero-label" class="sc-hero-kicker">Pitch Battle Result</p>
@@ -761,14 +753,18 @@
                 <span class="sc-chip sc-chip-weak" id="chip-weakest-dim">↓ Weakest: —</span>
                 <span class="sc-chip sc-chip-model" id="chip-score-source" hidden>⚡ Nemotron</span>
               </div>
-              <div class="sc-hero-actions">
-                <button id="btn-path-to-80" class="btn sc-btn-gold" type="button">View Path to 80+</button>
-                <button id="btn-scorecard-retry" class="btn sc-btn-secondary" type="button">Retry Weakest Question</button>
-                <button id="btn-reset" class="btn sc-btn-secondary" type="button">New Battle</button>
+              <div class="sc-hero-actions-row">
+                <div class="sc-hero-actions sc-hero-actions-primary">
+                  <button id="btn-path-to-80" class="btn sc-btn-gold" type="button">View Path to 80+</button>
+                  <button id="btn-scorecard-retry" class="btn sc-btn-secondary" type="button">Retry Weakest Question</button>
+                </div>
+                <div class="sc-hero-actions sc-hero-actions-secondary">
+                  <button id="btn-view-deal-scorecard" class="btn score-action-btn score-action-btn-secondary" type="button" hidden>View Combined Readout</button>
+                  <button id="btn-view-judge-verdict" class="btn score-action-btn score-action-btn-verdict" type="button" hidden>View Judge Verdict</button>
+                  <button id="btn-view-conversation" class="btn score-action-btn score-action-btn-secondary" type="button">View Conversation</button>
+                  <button id="btn-reset" class="btn score-action-btn score-action-btn-secondary" type="button">New Battle</button>
+                </div>
               </div>
-            </div>
-            <div class="sc-hero-conversation">
-              <button id="btn-view-conversation" class="btn sc-btn-conversation" type="button">View Conversation</button>
             </div>
           </div>
         </header>
@@ -814,14 +810,14 @@
                 <article id="voice-delivery-section" class="sc-voice-inline" hidden>
                   <div class="sc-tab-divider"></div>
                   <p class="sc-tab-eyebrow">Voice Delivery</p>
-                  <div id="voice-delivery-content" class="voice-delivery-grid"></div>
+                  <div id="voice-delivery-content" class="voice-delivery-wrap"></div>
                 </article>
               </div>
 
               <div class="sc-tab-panel" data-panel="answers" role="tabpanel" hidden>
                 <div id="answers-empty-state" class="sc-answers-empty" hidden>
                   <p class="sc-empty-title">No battle answers recorded.</p>
-                  <p class="sc-empty-sub">You ended the battle before responding.</p>
+                  <p class="sc-empty-sub">You ended before responding, so the scorecard can only grade the startup brief.</p>
                   <div class="sc-empty-actions">
                     <button type="button" id="btn-answers-retry" class="btn sc-btn-gold">Retry Weakest Question</button>
                     <button type="button" id="btn-answers-new-battle" class="btn sc-btn-secondary">New Battle</button>
@@ -859,29 +855,6 @@
                 </div>
               </div>
             </div>
-
-            <section id="judge-verdict-hero" class="sc-verdict-section sc-verdict-inline" hidden>
-              <p class="sc-section-label sc-verdict-heading">Judge Verdict</p>
-              <div id="judge-verdict-section" class="sc-verdict-card">
-                <div class="sc-verdict-head">
-                  <span id="verdict-persona-badge" class="sc-verdict-judge"></span>
-                  <span id="verdict-interest-badge" class="sc-verdict-pill"></span>
-                </div>
-                <blockquote id="verdict-reaction" class="sc-verdict-quote"></blockquote>
-                <div class="sc-verdict-meta">
-                  <div class="sc-verdict-meta-item">
-                    <span class="sc-meta-label">Deal Type</span>
-                    <strong id="verdict-deal-type" class="sc-meta-value"></strong>
-                  </div>
-                  <div class="sc-verdict-meta-item sc-verdict-meta-wide">
-                    <span class="sc-meta-label">Why</span>
-                    <strong id="verdict-why" class="sc-meta-value"></strong>
-                  </div>
-                </div>
-                <p id="verdict-opening-offer" class="sc-verdict-offer" hidden></p>
-                <div id="verdict-actions" class="sc-verdict-actions"></div>
-              </div>
-            </section>
           </div>
         </div>
 
@@ -1200,6 +1173,46 @@
     </div>
   </div>
 
+  <!-- Judge Verdict Modal -->
+  <div id="verdict-overlay" class="verdict-overlay conversation-modal" hidden aria-modal="true" role="dialog" aria-label="Judge Verdict">
+    <div class="verdict-modal-panel glass results-modal-panel">
+      <div class="verdict-modal-header">
+        <div>
+          <p class="results-eyebrow">Post-Battle</p>
+          <h2 class="verdict-modal-title">Judge Verdict</h2>
+        </div>
+        <button id="btn-close-verdict" class="btn btn-ghost btn-sm" type="button" aria-label="Close">✕ Close</button>
+      </div>
+      <div id="judge-verdict-section" class="sc-verdict-card sc-verdict-modal-card">
+        <div class="sc-verdict-head">
+          <span id="verdict-persona-badge" class="sc-verdict-judge"></span>
+          <span id="verdict-interest-badge" class="sc-verdict-pill"></span>
+        </div>
+        <blockquote id="verdict-reaction" class="sc-verdict-quote"></blockquote>
+        <div class="sc-verdict-meta">
+          <div class="sc-verdict-meta-item">
+            <span class="sc-meta-label">Deal Type</span>
+            <strong id="verdict-deal-type" class="sc-meta-value"></strong>
+          </div>
+          <div class="sc-verdict-meta-item sc-verdict-meta-wide">
+            <span class="sc-meta-label">Why</span>
+            <strong id="verdict-why" class="sc-meta-value"></strong>
+          </div>
+        </div>
+        <p id="verdict-opening-offer" class="sc-verdict-offer" hidden></p>
+        <p id="verdict-deal-locked-msg" class="verdict-deal-locked-msg" hidden>Deal phase is not unlocked for this verdict.</p>
+      </div>
+      <div class="verdict-modal-footer">
+        <div id="verdict-actions" class="sc-verdict-actions verdict-modal-actions"></div>
+        <div class="verdict-modal-footer-secondary">
+          <button id="btn-verdict-retry" class="btn sc-btn-secondary" type="button">Retry Weakest Question</button>
+          <button id="btn-verdict-new-battle" class="btn sc-btn-secondary" type="button">New Battle</button>
+          <button id="btn-close-verdict-bottom" class="btn btn-ghost" type="button">Back to Scorecard</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Coaching Roadmap Overlay -->
   <div id="path80-overlay" class="path80-overlay conversation-modal" hidden aria-modal="true" role="dialog" aria-label="Path to 80+">
     <div class="path80-panel glass results-modal-panel">
@@ -1340,6 +1353,9 @@
           <span id="retry-overall-lift" class="retry-overall-lift"></span>
           <span id="retry-verdict-badge" class="retry-verdict-badge result-verdict-badge"></span>
         </div>
+        <p id="retry-projection-note" class="retry-projection-note" hidden>
+          Training projection only — your original scorecard stays unchanged.
+        </p>
         <p id="retry-next-prompt" class="retry-next-prompt clamp-text"></p>
         <div class="retry-result-actions scorecard-actions">
           <button id="btn-retry-again" class="btn btn-retry-start" type="button">Retry Again</button>

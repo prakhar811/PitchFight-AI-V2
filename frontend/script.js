@@ -23,9 +23,14 @@ const state = {
   dealBattleLog: [],
   battleMetaSnapshot: null,
   scorecardSnapshot: null,
+  dealScorecardData: null,
+  voiceEntrySource: "arena",
   briefingMode: "quick",
   briefStructured: false,
   pitchExtractionConfidence: null,
+  pitchExtractionConfidenceScore: null,
+  lastStructuredPitchText: null,
+  lastStructuredPitchData: null,
   battleConfidencePct: null,
 };
 
@@ -62,12 +67,16 @@ const loadingText = document.getElementById("loading-message");
 const battleStatus = document.getElementById("battle-status");
 const errorBanner = document.getElementById("error-banner");
 
+function bindClick(id, handler) {
+  document.getElementById(id)?.addEventListener("click", handler);
+}
+
 function showScreen(name) {
   Object.entries(screens).forEach(([key, el]) => {
     el.classList.toggle("active", key === name);
   });
   const app = document.getElementById("app");
-  app?.classList.toggle("app-arena-fullwidth", name === "battle" || name === "deal" || name === "scorecard");
+  app?.classList.toggle("app-arena-fullwidth", name === "battle" || name === "deal" || name === "scorecard" || name === "dealScorecard");
   app?.classList.toggle("app-scorecard-fullwidth", name === "scorecard");
   if (name === "landing" && landingIntroComplete) {
     finalizeLandingIntroStatic();
@@ -120,6 +129,168 @@ function typeText(el, text, speedMs, onDone) {
   step();
 }
 
+/* ---- Landing currency fall canvas ---- */
+
+const PF_FALL_BILL_COUNT = 38;
+
+function initPfFallCanvas() {
+  const canvas = document.getElementById("pfFallCanvas");
+  const landingScreen = document.getElementById("screen-landing");
+  const host = canvas?.parentElement;
+  if (!canvas || !host || !landingScreen) return;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  let width = 0;
+  let height = 0;
+  let bills = [];
+  let rafId = 0;
+  let running = false;
+  const reducedMotion = prefersReducedMotion();
+
+  const rand = (min, max) => min + Math.random() * (max - min);
+
+  const roundRectPath = (c, x, y, w, h, r) => {
+    const radius = Math.min(r, w / 2, h / 2);
+    c.beginPath();
+    c.moveTo(x + radius, y);
+    c.lineTo(x + w - radius, y);
+    c.quadraticCurveTo(x + w, y, x + w, y + radius);
+    c.lineTo(x + w, y + h - radius);
+    c.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+    c.lineTo(x + radius, y + h);
+    c.quadraticCurveTo(x, y + h, x, y + h - radius);
+    c.lineTo(x, y + radius);
+    c.quadraticCurveTo(x, y, x + radius, y);
+    c.closePath();
+  };
+
+  const createBill = () => {
+    const gold = Math.random() < 0.7;
+    return {
+      x: rand(0, width),
+      y: rand(-30, height),
+      scale: rand(0.5, 1.2),
+      vy: rand(0.25, 0.8),
+      vx: rand(-0.2, 0.2),
+      vr: rand(-0.025, 0.025),
+      alpha: rand(0.12, 0.35),
+      rot: rand(0, Math.PI * 2),
+      rgb: gold ? [245, 200, 66] : [0, 230, 200],
+      strokeAlpha: gold ? 0.35 : 0.25,
+    };
+  };
+
+  const drawBill = (bill) => {
+    const w = 48 * bill.scale;
+    const h = 20 * bill.scale;
+    const [r, g, b] = bill.rgb;
+    const inset = 3 * bill.scale;
+    const radius = 3 * bill.scale;
+
+    ctx.save();
+    ctx.translate(bill.x, bill.y);
+    ctx.rotate(bill.rot);
+    ctx.globalAlpha = bill.alpha;
+
+    roundRectPath(ctx, -w / 2, -h / 2, w, h, radius);
+    ctx.fillStyle = `rgba(${r},${g},${b},0.04)`;
+    ctx.fill();
+
+    ctx.strokeStyle = `rgba(${r},${g},${b},${bill.strokeAlpha})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    roundRectPath(ctx, -w / 2 + inset, -h / 2 + inset, w - inset * 2, h - inset * 2, Math.max(1, radius - inset));
+    ctx.strokeStyle = `rgba(${r},${g},${b},0.2)`;
+    ctx.stroke();
+
+    ctx.font = `${Math.max(8, 11 * bill.scale)}px monospace`;
+    ctx.fillStyle = `rgba(${r},${g},${b},0.4)`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText("₹", -w / 2 + inset + 2, 0);
+
+    ctx.restore();
+  };
+
+  const drawFrame = () => {
+    ctx.clearRect(0, 0, width, height);
+    for (const bill of bills) {
+      drawBill(bill);
+    }
+  };
+
+  const tick = () => {
+    if (!running) return;
+    ctx.clearRect(0, 0, width, height);
+    for (const bill of bills) {
+      bill.y += bill.vy;
+      bill.x += bill.vx;
+      bill.rot += bill.vr;
+      if (bill.y > height + 30) {
+        bill.y = -30;
+        bill.x = rand(0, width);
+      }
+      drawBill(bill);
+    }
+    rafId = requestAnimationFrame(tick);
+  };
+
+  const resize = () => {
+    const rect = host.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    width = Math.max(1, rect.width);
+    height = Math.max(1, rect.height);
+    canvas.width = Math.floor(width * dpr);
+    canvas.height = Math.floor(height * dpr);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    bills = Array.from({ length: PF_FALL_BILL_COUNT }, () => createBill());
+    if (reducedMotion || !running) {
+      drawFrame();
+    }
+  };
+
+  const startAnimation = () => {
+    if (reducedMotion || running) return;
+    running = true;
+    cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(tick);
+  };
+
+  const stopAnimation = () => {
+    running = false;
+    cancelAnimationFrame(rafId);
+    rafId = 0;
+  };
+
+  const syncVisibility = () => {
+    if (landingScreen.classList.contains("active")) {
+      resize();
+      startAnimation();
+    } else {
+      stopAnimation();
+    }
+  };
+
+  resize();
+  window.addEventListener("resize", resize);
+
+  const observer = new MutationObserver(syncVisibility);
+  observer.observe(landingScreen, { attributes: true, attributeFilter: ["class"] });
+
+  if (landingScreen.classList.contains("active")) {
+    if (reducedMotion) {
+      drawFrame();
+    } else {
+      startAnimation();
+    }
+  }
+}
+
 function initLandingIntro() {
   if (landingIntroRunning || landingIntroComplete) return;
   landingIntroRunning = true;
@@ -167,6 +338,22 @@ const NEMOTRON_SCORECARD_SOURCES = new Set(["nemotron_full", "nemotron", "nemotr
 
 function isNemotronScorecardSource(src) {
   return NEMOTRON_SCORECARD_SOURCES.has(String(src ?? "").trim());
+}
+
+function getScorecardSourceDisplay(data = {}) {
+  const src = String(data.scorecard_source ?? "").trim().toLowerCase();
+  const provider = String(data.provider ?? "").trim().toLowerCase();
+  const modelOk = data.model_ok === true;
+
+  if (isNemotronScorecardSource(src) || (modelOk && provider === "nvidia")) {
+    return {
+      show: true,
+      chip: "⚡ Nemotron",
+      badge: "Powered by NVIDIA Nemotron",
+      title: "Scoring source: NVIDIA Nemotron",
+    };
+  }
+  return { show: false };
 }
 
 const INTERNAL_ERROR_PATTERNS = [
@@ -243,6 +430,7 @@ function commitBriefFieldEdit(card) {
   }
   closeBriefFieldExpanded(card);
   syncBriefToStartupForm();
+  recomputeBriefConfidence();
 }
 
 function cancelBriefFieldEdit(card) {
@@ -338,7 +526,7 @@ function syncBriefToStartupForm() {
 }
 
 function getStartupPayload() {
-  if (briefPreviewPanel && !briefPreviewPanel.hidden) {
+  if (state.briefStructured) {
     syncBriefToStartupForm();
   }
   const data = new FormData(startupForm);
@@ -356,7 +544,7 @@ function fillStartupForm(startup) {
 function setBriefingMode(mode) {
   state.briefingMode = mode;
   const isQuick = mode === "quick";
-  const previewVisible = state.briefStructured;
+  const previewVisible = isQuick && state.briefStructured;
 
   document.getElementById("tab-quick-pitch")?.classList.toggle("active", isQuick);
   document.getElementById("tab-advanced-briefing")?.classList.toggle("active", !isQuick);
@@ -364,6 +552,7 @@ function setBriefingMode(mode) {
   document.getElementById("tab-advanced-briefing")?.setAttribute("aria-selected", String(!isQuick));
   briefingLeftCol?.classList.toggle("mode-quick", isQuick);
   briefingLeftCol?.classList.toggle("mode-advanced", !isQuick);
+  briefingLeftCol?.classList.toggle("mode-structured", previewVisible);
 
   const advancedPanel = document.getElementById("panel-advanced-briefing");
   if (advancedPanel) advancedPanel.hidden = isQuick;
@@ -380,7 +569,9 @@ function setBriefingMode(mode) {
   const subtitle = document.getElementById("briefing-subtitle");
   if (subtitle) {
     subtitle.textContent = isQuick
-      ? "Pitch naturally. We'll structure it before the judge attacks it."
+      ? (previewVisible
+        ? "Review your structured brief, then pick opponent and start."
+        : "Pitch naturally. We'll structure it before the judge attacks it.")
       : "Want full control? Edit every field manually.";
   }
 }
@@ -388,15 +579,7 @@ function setBriefingMode(mode) {
 function showBriefPreview(meta = {}) {
   if (quickPitchPanel) quickPitchPanel.hidden = true;
   if (briefPreviewPanel) briefPreviewPanel.hidden = false;
-  const advancedPanel = document.getElementById("panel-advanced-briefing");
-  if (advancedPanel) advancedPanel.hidden = true;
-
-  const confEl = document.getElementById("brief-preview-confidence");
-  if (confEl) {
-    const conf = meta.confidence || "medium";
-    confEl.textContent = `Confidence: ${String(conf).toUpperCase()}`;
-    confEl.className = `brief-confidence-chip confidence-${conf}`;
-  }
+  briefingLeftCol?.classList.add("mode-structured");
 
   const hintEl = document.getElementById("brief-preview-hint");
   if (hintEl) {
@@ -417,7 +600,7 @@ function hideBriefPreview() {
   state.briefStructured = false;
   if (quickPitchPanel) quickPitchPanel.hidden = false;
   if (briefPreviewPanel) briefPreviewPanel.hidden = true;
-  document.getElementById("structure-pitch-hint")?.setAttribute("hidden", "");
+  briefingLeftCol?.classList.remove("mode-structured");
   document.getElementById("brief-preview-hint")?.setAttribute("hidden", "");
   briefPreviewForm?.querySelectorAll(".brief-read-card.is-editing").forEach((card) => {
     commitBriefFieldEdit(card);
@@ -439,6 +622,68 @@ function confidenceFromStartupFields(startup = {}) {
   return "low";
 }
 
+// JS mirror of Python calculate_structure_confidence — same weights, caps, regexes.
+const _CONF_FIELD_WEIGHTS = { name:10, problem:15, target_users:12, solution:15, why_ai:10, traction:15, competitors:8, ask:10 };
+const _CONF_FIELD_CAPS = [["problem",60],["solution",60],["target_users",70],["traction",74],["competitors",92],["why_ai",90],["ask",85]];
+const _CONF_FILLER = new Set([
+  "not specified","n/a","none","unknown","tbd","-","",
+  "idk","i don't know","i dont know","not sure","na","no idea",
+  "dunno","nothing","?","??","???","yes","no","nope","yep",
+  "to be determined","to be decided","will update","coming soon",
+]);
+// Minimum word count for description fields — single-word noise like "idk" fails this.
+const _CONF_MIN_WORDS = { problem:2, solution:2, why_ai:2, traction:2, target_users:2 };
+const _CONF_USER_SEG_RE = /\b(college students?|university students?|indie developers?|small businesses?|enterprise|founders?|educators?|teachers?|researchers?|professionals?|teams?|parents?|teenagers?|consumers?|startup founders?)\b/i;
+const _CONF_CONCRETE_ASK_RE = /(\$[\d,]+[kKmM]?|\d+[kK]\s*(?:usd|dollars?)?|mentorship|campus pilot|equity partner|co.?founder|sponsorship|strategic partner)/i;
+
+function _calcConfidenceFromCtx(ctx, rawText) {
+  let score = 0;
+  const missing = [];
+  for (const [field, weight] of Object.entries(_CONF_FIELD_WEIGHTS)) {
+    const val = String(ctx[field] || "").trim();
+    const valLower = val.toLowerCase();
+    const minWords = _CONF_MIN_WORDS[field] ?? 1;
+    const filled = val && !_CONF_FILLER.has(valLower) && val.split(/\s+/).length >= minWords;
+    if (filled) score += weight;
+    else missing.push(field);
+  }
+  const text = String(rawText || "").trim();
+  let bonus = 0;
+  const numHits = (text.match(/\b\d[\d,]*\b/g) || []).length;
+  if (numHits >= 3) bonus += 10;
+  else if (numHits >= 1) bonus += 5;
+  if (_CONF_USER_SEG_RE.test(text)) bonus += 5;
+  if (_CONF_CONCRETE_ASK_RE.test(text)) bonus += 5;
+  bonus = Math.min(bonus, 20);
+  score = Math.min(score + bonus, 100);
+  for (const [field, cap] of _CONF_FIELD_CAPS) {
+    if (missing.includes(field)) score = Math.min(score, cap);
+  }
+  score = Math.max(0, Math.min(100, score));
+  return { confidence: score >= 75 ? "high" : score >= 45 ? "medium" : "low", confidence_score: score, missing_fields: missing };
+}
+
+function recomputeBriefConfidence() {
+  if (!briefPreviewForm) return;
+  const ctx = {};
+  for (const key of BRIEF_FIELD_KEYS) {
+    const inp = briefPreviewForm.querySelector(`[name="${key}"]`);
+    ctx[key] = (inp?.value || "").trim();
+  }
+  const result = _calcConfidenceFromCtx(ctx, state.lastStructuredPitchText || "");
+  state.pitchExtractionConfidence = result.confidence;
+  state.pitchExtractionConfidenceScore = result.confidence_score;
+  const hintEl = document.getElementById("brief-preview-hint");
+  if (hintEl) {
+    if (result.missing_fields.length) {
+      hintEl.textContent = `Not in your pitch: ${result.missing_fields.join(", ")}`;
+      hintEl.hidden = false;
+    } else {
+      hintEl.hidden = true;
+    }
+  }
+}
+
 function confidenceLevelToPct(level) {
   const key = String(level || "medium").toLowerCase();
   if (key === "high") return 76;
@@ -449,6 +694,10 @@ function confidenceLevelToPct(level) {
 function syncPitchExtractionConfidence(meta = {}, startup = null) {
   const level = extractionConfidenceLevel(meta) || confidenceFromStartupFields(startup) || "medium";
   state.pitchExtractionConfidence = level;
+  // Prefer numeric score from backend (0-100) so battle HUD has a precise baseline.
+  state.pitchExtractionConfidenceScore = typeof meta.confidence_score === "number"
+    ? meta.confidence_score
+    : confidenceLevelToPct(level);
   return level;
 }
 
@@ -456,12 +705,16 @@ function fillBriefPreview(startup, meta = {}) {
   state.briefStructured = true;
   syncPitchExtractionConfidence(meta, startup);
   fillStartupForm(startup);
+  syncBriefToStartupForm();
   showBriefPreview(meta);
 }
 
 function resetSetupScreen() {
   state.briefStructured = false;
   state.pitchExtractionConfidence = null;
+  state.pitchExtractionConfidenceScore = null;
+  state.lastStructuredPitchText = null;
+  state.lastStructuredPitchData = null;
   setBriefingMode("quick");
   hideBriefPreview();
   const quickText = document.getElementById("quick-pitch-text");
@@ -476,6 +729,15 @@ async function structurePitch() {
     showErrorBanner("Type or paste your pitch first.");
     return;
   }
+
+  // Return cached result when the same pitch text is re-submitted — confidence must not
+  // change on repeated clicks for the same input (Part C: stable re-structure).
+  if (state.lastStructuredPitchText === pitchText && state.lastStructuredPitchData) {
+    fillBriefPreview(state.lastStructuredPitchData.startup_context, state.lastStructuredPitchData);
+    hideErrorBanner();
+    return;
+  }
+
   try {
     setGlobalLoading(true, "Structuring your pitch…");
     state.startMode = "text";
@@ -484,6 +746,8 @@ async function structurePitch() {
       showErrorBanner(data.error || "Could not structure your pitch. Try Advanced Briefing.");
       return;
     }
+    state.lastStructuredPitchText = pitchText;
+    state.lastStructuredPitchData = data;
     fillBriefPreview(data.startup_context, data);
     hideErrorBanner();
   } catch (error) {
@@ -643,7 +907,11 @@ function renderConfidenceMeter(confidencePct) {
 }
 
 function refreshBattleConfidenceFromPressure(pressurePct, round = 1) {
-  const base = confidenceLevelToPct(state.pitchExtractionConfidence || "medium");
+  // Use the numeric confidence_score (0-100) from structure-pitch when available so
+  // the battle readiness meter reflects actual brief quality, not just high/mid/low buckets.
+  const base = state.pitchExtractionConfidenceScore != null
+    ? Math.max(25, Math.min(95, state.pitchExtractionConfidenceScore))
+    : confidenceLevelToPct(state.pitchExtractionConfidence || "medium");
   const pressureDrag = Math.round(Number(pressurePct) * 0.25);
   const roundDrag = Math.max(0, Number(round) - 1) * 2;
   const ceiling = Math.max(8, base - pressureDrag - roundDrag);
@@ -659,9 +927,12 @@ function adjustBattleConfidenceFromAnswer(quality) {
   const deltas = { strong: 8, partial: -2, weak: -12, non_answer: -20 };
   const delta = deltas[String(quality || "").toLowerCase()] ?? 0;
   if (!delta) return;
+  const fallbackBase = state.pitchExtractionConfidenceScore != null
+    ? state.pitchExtractionConfidenceScore
+    : confidenceLevelToPct(state.pitchExtractionConfidence);
   state.battleConfidencePct = Math.max(
     8,
-    Math.min(92, (state.battleConfidencePct ?? confidenceLevelToPct(state.pitchExtractionConfidence)) + delta),
+    Math.min(92, (state.battleConfidencePct ?? fallbackBase) + delta),
   );
   renderConfidenceMeter(state.battleConfidencePct);
 }
@@ -1087,6 +1358,11 @@ export async function loadSample() {
 
 export async function startSession() {
   try {
+    if (state.briefingMode === "quick" && !state.briefStructured) {
+      showErrorBanner("Structure your pitch first, or switch to Advanced Briefing.");
+      return;
+    }
+
     setGlobalLoading(true, "AI judge is preparing the first attack…");
     battleStatus.hidden = true;
     hideBattleReadiness();
@@ -1265,11 +1541,13 @@ export async function resetBattle() {
   state.pendingDealVoiceTurn = null;
   state.startMode = "text";
   state.pitchExtractionConfidence = null;
+  state.pitchExtractionConfidenceScore = null;
   state.battleConfidencePct = null;
   state.conversationLog = [];
   state.dealConversationLog = [];
   state.battleLog = [];
   state.dealBattleLog = [];
+  state.dealScorecardData = null;
   resetLiveTurnTracking();
   chatWindow.innerHTML = "";
   if (dealChatWindow) dealChatWindow.innerHTML = "";
@@ -1518,7 +1796,27 @@ function renderScorecard(data) {
   const { strongest, weakest } = getStrongestWeakest(scores);
   const se = data.score_explanation ?? {};
   const explanation = se;
-  const nemotronScored = isNemotronScorecardSource(data.scorecard_source);
+  const sourceDisplay = getScorecardSourceDisplay(data);
+
+  const chipSource = document.getElementById("chip-score-source");
+  const sourceBadgeEl = document.getElementById("scorecard-source-badge");
+  if (chipSource) {
+    if (sourceDisplay.show) {
+      chipSource.textContent = sourceDisplay.chip;
+      chipSource.title = sourceDisplay.title ?? "";
+      chipSource.hidden = false;
+    } else {
+      chipSource.textContent = "";
+      chipSource.hidden = true;
+    }
+  }
+  if (sourceBadgeEl) {
+    sourceBadgeEl.hidden = true;
+    sourceBadgeEl.textContent = "";
+  }
+  if (!sourceDisplay.show && data.fallback_reason) {
+    console.info("Scorecard used local fallback:", data.fallback_reason, data.model_error || "");
+  }
 
   const opponent = PERSONA_LABELS[state.persona] ?? data.opponent ?? "AI Judge";
   const mode = DIFFICULTY_LABELS[state.difficultyProfile]
@@ -1551,16 +1849,6 @@ function renderScorecard(data) {
     weakChip.textContent = weakest
       ? `↓ Weakest: ${formatDimLabel(weakest[0])}`
       : "↓ Weakest: —";
-  }
-
-  const chipSource = document.getElementById("chip-score-source");
-  const sourceBadgeEl = document.getElementById("scorecard-source-badge");
-  if (chipSource) {
-    chipSource.textContent = nemotronScored ? "⚡ Nemotron" : "⚡ Local";
-    chipSource.hidden = false;
-  }
-  if (sourceBadgeEl) {
-    sourceBadgeEl.textContent = nemotronScored ? "Powered by NVIDIA Nemotron" : "Local scoring";
   }
 
   const fallbackWarnEl = document.getElementById("scorecard-fallback-warning");
@@ -1659,6 +1947,23 @@ function renderScorecard(data) {
   if (answersEmpty) answersEmpty.hidden = !noAnswers;
   if (answersContent) answersContent.hidden = noAnswers;
 
+  if (noAnswers) {
+    if (whyScoredEl && !whyScoredEl.textContent?.trim()) {
+      whyScoredEl.textContent =
+        "You ended before responding, so the scorecard can only grade the startup brief.";
+    }
+    if (whatStoppedEl && !whatStoppedEl.textContent?.trim()) {
+      whatStoppedEl.textContent = "Submit at least one battle answer to unlock answer-level coaching.";
+    }
+    if (nextText && !nextText.textContent?.trim()) {
+      nextText.textContent = "Start a new battle and defend at least one question.";
+    }
+    const prepPanel = document.querySelector('.sc-tab-panel[data-panel="prep"]');
+    if (prepPanel) prepPanel.classList.add("sc-prep-empty");
+  } else {
+    document.querySelector('.sc-tab-panel[data-panel="prep"]')?.classList.remove("sc-prep-empty");
+  }
+
   state.scoreExplanation = data.score_explanation ?? null;
 
   const pathBtn = document.getElementById("btn-path-to-80");
@@ -1683,6 +1988,8 @@ function renderScorecard(data) {
     weakest: weakest ? formatDimLabel(weakest[0]) : null,
     roundsCompleted: state.battleLog?.length ?? 0,
   };
+
+  updateScorecardCrossNav();
 }
 
 const DEAL_TYPE_LABELS = {
@@ -1704,13 +2011,36 @@ function verdictNegotiationCta(label, fallback = "Start Negotiation →") {
     .replace(/Deal Round/i, "Negotiation");
 }
 
+function canContinueToDealFromVerdict(verdict) {
+  if (!verdict) return false;
+  if (verdict.can_continue_to_deal) return true;
+  const interest = verdict.interest_level || "";
+  if ((interest === "mild_interest" || interest === "strong_interest") && verdict.deal_type && verdict.deal_type !== "none") {
+    return true;
+  }
+  return false;
+}
+
+function openVerdictModal() {
+  const overlay = document.getElementById("verdict-overlay");
+  if (!overlay || !state.judgeVerdict?.interest_level) return;
+  overlay.hidden = false;
+  document.body.style.overflow = "hidden";
+}
+
+function closeVerdictModal() {
+  const overlay = document.getElementById("verdict-overlay");
+  if (overlay) overlay.hidden = true;
+  document.body.style.overflow = "";
+}
+
 function renderJudgeVerdict(verdict) {
-  const heroWrap = document.getElementById("judge-verdict-hero");
+  const verdictBtn = document.getElementById("btn-view-judge-verdict");
   if (!verdict || !verdict.interest_level) {
-    if (heroWrap) heroWrap.hidden = true;
+    if (verdictBtn) verdictBtn.hidden = true;
     return;
   }
-  if (heroWrap) heroWrap.hidden = false;
+  if (verdictBtn) verdictBtn.hidden = false;
 
   const interest = verdict.interest_level || "no_interest";
   const personaLine = `${verdict.persona_name || "Judge"} — ${verdict.persona_type || ""}`.trim();
@@ -1739,32 +2069,26 @@ function renderJudgeVerdict(verdict) {
     }
   }
 
+  const lockedMsg = document.getElementById("verdict-deal-locked-msg");
+  const dealAvailable = canContinueToDealFromVerdict(verdict);
+  if (lockedMsg) {
+    lockedMsg.hidden = dealAvailable || interest === "verdict_only";
+  }
+
   const actions = document.getElementById("verdict-actions");
   if (!actions) return;
   actions.innerHTML = "";
 
-  if (verdict.can_continue_to_deal) {
+  if (dealAvailable) {
     const btn = document.createElement("button");
-    btn.className = "btn btn-deal-continue";
-    btn.textContent = verdictNegotiationCta(verdict.next_step_label);
+    btn.className = "btn btn-deal-continue sc-btn-gold";
+    btn.textContent = verdictNegotiationCta(verdict.next_step_label, "Continue to Deal Phase →");
     btn.type = "button";
-    btn.addEventListener("click", startDealPhase);
+    btn.addEventListener("click", () => {
+      closeVerdictModal();
+      startDealPhase();
+    });
     actions.appendChild(btn);
-  } else if (interest === "too_early") {
-    /* Footer sc-cta-row handles retry / setup */
-  } else if (interest === "no_interest") {
-    /* Footer sc-cta-row handles Path to 80+ and New Battle */
-  } else if (interest === "mild_interest" || interest === "strong_interest") {
-    if (!verdict.can_continue_to_deal) {
-      const btn = document.createElement("button");
-      btn.className = "btn btn-deal-continue";
-      btn.textContent = verdictNegotiationCta(verdict.next_step_label);
-      btn.type = "button";
-      btn.addEventListener("click", startDealPhase);
-      actions.appendChild(btn);
-    }
-  } else if (verdict.deal_type === "verdict_only") {
-    /* Footer sc-cta-row handles Path to 80+ */
   }
 }
 
@@ -1940,7 +2264,22 @@ export async function endDeal() {
   }
 }
 
+function updateScorecardCrossNav() {
+  const btn = document.getElementById("btn-view-deal-scorecard");
+  if (!btn) return;
+  btn.hidden = !state.dealScorecardData;
+}
+
+function showDealScorecardScreen() {
+  if (!state.dealScorecardData) return;
+  renderDealScorecard(state.dealScorecardData);
+  showScreen("dealScorecard");
+}
+
 function renderDealScorecard(data) {
+  state.dealScorecardData = data;
+  updateScorecardCrossNav();
+
   const combined = data.combined_scorecard || {};
   const deal = data.deal_scorecard || {};
 
@@ -2116,16 +2455,27 @@ function renderVoiceDelivery(vd) {
     || (vd.delivery_notes ?? []).find((n) => String(n).trim()) || "";
 
   content.innerHTML = `
-    <div class="voice-wave-decor" aria-hidden="true"></div>
-    <div class="voice-delivery-summary voice-delivery-grid">
-      <div class="voice-delivery-stat"><span>Voice turns</span><strong>${vd.total_voice_turns ?? 0}</strong></div>
-      <div class="voice-delivery-stat"><span>Filler words</span><strong>${vd.total_filler_words ?? 0}</strong></div>
-      <div class="voice-delivery-stat"><span>Common fillers</span><strong>${escapeHtml(fillers)}</strong></div>
-      <div class="voice-delivery-stat"><span>Pace</span><strong>${escapeHtml(vd.average_pace ?? "—")}</strong></div>
-      <div class="voice-delivery-stat"><span>Clarity signal</span><strong>${escapeHtml(vd.clarity_signal ?? "—")}</strong></div>
-      <div class="voice-delivery-stat"><span>Confidence signal</span><strong>${escapeHtml(vd.confidence_signal ?? "—")}</strong></div>
+    <div class="voice-delivery-layout">
+      <div class="voice-delivery-metrics" role="list">
+        <div class="voice-delivery-box" role="listitem">
+          <span class="voice-delivery-box-label">Voice turns</span>
+          <strong class="voice-delivery-box-value">${vd.total_voice_turns ?? 0}</strong>
+        </div>
+        <div class="voice-delivery-box" role="listitem">
+          <span class="voice-delivery-box-label">Filler words</span>
+          <strong class="voice-delivery-box-value">${vd.total_filler_words ?? 0}</strong>
+        </div>
+        <div class="voice-delivery-box" role="listitem">
+          <span class="voice-delivery-box-label">Common fillers</span>
+          <strong class="voice-delivery-box-value">${escapeHtml(fillers)}</strong>
+        </div>
+        <div class="voice-delivery-box" role="listitem">
+          <span class="voice-delivery-box-label">Pace</span>
+          <strong class="voice-delivery-box-value">${escapeHtml(vd.average_pace ?? "—")}</strong>
+        </div>
+      </div>
+      ${overallNote ? `<p class="voice-delivery-overall">${escapeHtml(overallNote)}</p>` : ""}
     </div>
-    ${overallNote ? `<p class="voice-delivery-overall">${escapeHtml(overallNote)}</p>` : ""}
   `;
 
   const notes = (vd.delivery_notes ?? []).filter((n) => {
@@ -2289,29 +2639,62 @@ function showRetryVoicePreview(data) {
 
 function renderRetryResult(data) {
   const comp = data.comparison ?? {};
+  const proj = data.projection ?? {};
   document.getElementById("retry-result-old").textContent = comp.old_answer_summary ?? data.original_answer ?? "";
   document.getElementById("retry-result-new").textContent = comp.new_answer_summary ?? data.retry_answer ?? "";
   document.getElementById("retry-what-improved").textContent = comp.what_improved ?? "";
   document.getElementById("retry-still-missing").textContent = comp.still_missing ?? "";
   document.getElementById("retry-specific-tip").textContent = comp.specific_tip ?? "";
 
-  const dim = formatDimLabel(data.dimension);
-  const before = comp.estimated_dimension_before ?? 0;
-  const after = comp.estimated_dimension_after ?? before;
+  // Prefer normalized projection fields; fall back to legacy comparison fields.
+  const before = proj.old_dimension_score ?? comp.estimated_dimension_before ?? 0;
+  const after = proj.new_dimension_score ?? comp.estimated_dimension_after ?? before;
   document.getElementById("retry-dim-estimate").textContent =
     `${formatDimLabel(data.dimension)}: ${before} → ${after}`;
-  const lift = data.updated_scorecard?.retry_overall_lift ?? comp.estimated_overall_lift ?? 0;
-  document.getElementById("retry-overall-lift").textContent =
-    data.updated_scorecard
-      ? `Overall score: ${data.updated_scorecard.overall} (+${lift})`
-      : `Overall lift: +${lift}`;
+
+  // Safety floor: never display a baseline lower than what the scorecard shows.
+  // If the backend returns a projection baseline below the visible scorecard overall,
+  // clamp up to the scorecard snapshot so the user never sees "score went down".
+  const snapshotOverall = state.scorecardSnapshot?.overall ?? null;
+  const rawOriginalOverall = proj.original_overall_score ?? snapshotOverall ?? "—";
+  const originalOverall = (
+    typeof rawOriginalOverall === "number" &&
+    typeof snapshotOverall === "number" &&
+    rawOriginalOverall < snapshotOverall
+  ) ? snapshotOverall : rawOriginalOverall;
+
+  const rawProjected = proj.projected_overall_score ?? originalOverall;
+  const projectedOverall = (
+    typeof rawProjected === "number" && typeof originalOverall === "number"
+  ) ? Math.max(rawProjected, originalOverall) : rawProjected;
+
+  const projectedDelta = (
+    typeof projectedOverall === "number" && typeof originalOverall === "number"
+  ) ? Math.max(0, projectedOverall - originalOverall) : (proj.projected_overall_delta ?? 0);
+
+  const liftEl = document.getElementById("retry-overall-lift");
+  if (liftEl) {
+    if (projectedDelta > 0) {
+      liftEl.textContent = `Projected overall: ${originalOverall} → ${projectedOverall} (+${projectedDelta})`;
+    } else {
+      liftEl.textContent = "No projected lift yet — keep practicing this dimension.";
+    }
+  }
+
+  const noteEl = document.getElementById("retry-projection-note");
+  if (noteEl) {
+    noteEl.textContent = "Training projection only — your original scorecard stays unchanged.";
+    noteEl.hidden = false;
+  }
 
   const verdictEl = document.getElementById("retry-verdict-badge");
-  const verdict = comp.verdict ?? "needs_more_work";
+  const verdict = projectedDelta > 0
+    ? (projectedDelta >= 3 ? "improved" : "slightly_improved")
+    : (comp.verdict ?? "needs_more_work");
   const verdictLabels = {
     improved: "Improved",
     slightly_improved: "Slightly improved",
-    needs_more_work: "Needs more work",
+    needs_more_work: "No lift yet",
   };
   if (verdictEl) {
     verdictEl.textContent = verdictLabels[verdict] ?? verdict;
@@ -2353,14 +2736,6 @@ async function submitRetryAnswer() {
       return;
     }
     renderRetryResult(data);
-    if (data.updated_scorecard) {
-      renderScorecard(data.updated_scorecard);
-      state.scoreExplanation = data.updated_scorecard.score_explanation ?? state.scoreExplanation;
-      if (data.judge_verdict) {
-        renderJudgeVerdict(data.judge_verdict);
-        state.judgeVerdict = data.judge_verdict;
-      }
-    }
     hideErrorBanner();
   } catch (error) {
     console.error(error);
@@ -2380,49 +2755,54 @@ function openRetryFromPath80() {
   startRetryDrill();
 }
 
-document.getElementById("btn-load-sample").addEventListener("click", loadSample);
-document.getElementById("btn-load-sample-setup")?.addEventListener("click", loadSample);
-document.getElementById("btn-go-setup").addEventListener("click", () => {
-  resetSetupScreen();
-  showScreen("setup");
+bindClick("btn-load-sample", loadSample);
+bindClick("btn-load-sample-setup", loadSample);
+bindClick("btn-go-setup", () => {
+  showScreen("startMethod");
 });
-document.getElementById("btn-back-landing").addEventListener("click", () => {
+bindClick("btn-back-landing", () => {
   resetSetupScreen();
   showScreen("landing");
 });
-document.getElementById("tab-quick-pitch")?.addEventListener("click", () => setBriefingMode("quick"));
-document.getElementById("tab-advanced-briefing")?.addEventListener("click", () => setBriefingMode("advanced"));
-document.getElementById("btn-structure-pitch")?.addEventListener("click", structurePitch);
-document.getElementById("btn-record-voice-setup")?.addEventListener("click", () => {
+bindClick("tab-quick-pitch", () => setBriefingMode("quick"));
+bindClick("tab-advanced-briefing", () => setBriefingMode("advanced"));
+bindClick("btn-structure-pitch", structurePitch);
+bindClick("btn-record-voice-setup", () => {
   state.startMode = "voice";
+  state.voiceEntrySource = "briefing";
   showScreen("voicePitch");
 });
-document.getElementById("btn-looks-good-start")?.addEventListener("click", () => {
+bindClick("btn-looks-good-start", () => {
   syncBriefToStartupForm();
   startSession();
 });
-document.getElementById("btn-restructure-pitch")?.addEventListener("click", () => {
+bindClick("btn-restructure-pitch", () => {
   hideBriefPreview();
   document.getElementById("quick-pitch-text")?.focus();
 });
-document.getElementById("btn-start-back-landing").addEventListener("click", () => showScreen("landing"));
+bindClick("btn-start-back-landing", () => showScreen("landing"));
 
-document.getElementById("btn-start-text").addEventListener("click", () => {
+bindClick("btn-start-text", () => {
   state.startMode = "text";
-  document.querySelectorAll(".start-method-card").forEach((c) => c.classList.remove("selected"));
-  document.getElementById("btn-start-text").classList.add("selected");
+  state.voiceEntrySource = "arena";
+  resetSetupScreen();
+  showScreen("setup");
 });
-document.getElementById("btn-start-voice").addEventListener("click", () => {
+
+bindClick("btn-start-voice", () => {
   state.startMode = "voice";
-  document.querySelectorAll(".start-method-card").forEach((c) => c.classList.remove("selected"));
-  document.getElementById("btn-start-voice").classList.add("selected");
+  state.voiceEntrySource = "arena";
+  showScreen("voicePitch");
 });
-document.getElementById("btn-continue-start").addEventListener("click", () => {
-  if (state.startMode === "voice") showScreen("voicePitch");
-  else showScreen("setup");
+
+bindClick("btn-voice-pitch-back", () => {
+  if (state.voiceEntrySource === "briefing") {
+    showScreen("setup");
+    return;
+  }
+  showScreen("startMethod");
 });
-document.getElementById("btn-voice-pitch-back").addEventListener("click", () => showScreen("setup"));
-document.getElementById("btn-voice-edit-manual").addEventListener("click", () => {
+bindClick("btn-voice-edit-manual", () => {
   const form = document.getElementById("voice-extract-form");
   const data = new FormData(form);
   applyVoicePitchToBriefing({
@@ -2433,7 +2813,7 @@ document.getElementById("btn-voice-edit-manual").addEventListener("click", () =>
   setBriefingMode("advanced");
   showScreen("setup");
 });
-document.getElementById("btn-voice-looks-right").addEventListener("click", () => {
+bindClick("btn-voice-looks-right", () => {
   const form = document.getElementById("voice-extract-form");
   const data = new FormData(form);
   applyVoicePitchToBriefing({
@@ -2444,7 +2824,7 @@ document.getElementById("btn-voice-looks-right").addEventListener("click", () =>
   });
   showScreen("setup");
 });
-document.getElementById("btn-voice-turn-send").addEventListener("click", () => {
+bindClick("btn-voice-turn-send", () => {
   const transcript = document.getElementById("voice-turn-transcript")?.value?.trim();
   if (!transcript || !state.pendingVoiceTurn) return;
   sendMessage(transcript, {
@@ -2456,32 +2836,47 @@ document.getElementById("btn-voice-turn-send").addEventListener("click", () => {
     },
   });
 });
-document.getElementById("btn-start-battle").addEventListener("click", startSession);
-document.getElementById("btn-end-battle").addEventListener("click", endBattle);
-document.getElementById("btn-reset").addEventListener("click", resetBattle);
-document.getElementById("btn-back-setup")?.addEventListener("click", () => showScreen("setup"));
-document.getElementById("btn-path-to-80").addEventListener("click", openPath80);
-document.getElementById("btn-close-path80").addEventListener("click", closePath80);
-document.getElementById("btn-close-path80-bottom").addEventListener("click", closePath80);
-document.getElementById("btn-retry-question")?.addEventListener("click", openRetryFromPath80);
-document.getElementById("btn-scorecard-retry")?.addEventListener("click", startRetryDrill);
-document.getElementById("btn-prep-retry")?.addEventListener("click", startRetryDrill);
-document.getElementById("btn-answers-retry")?.addEventListener("click", startRetryDrill);
-document.getElementById("btn-answers-new-battle")?.addEventListener("click", resetBattle);
-document.getElementById("path80-overlay").addEventListener("click", (e) => {
+bindClick("btn-start-battle", startSession);
+bindClick("btn-end-battle", endBattle);
+bindClick("btn-reset", resetBattle);
+bindClick("btn-back-setup", () => showScreen("setup"));
+bindClick("btn-path-to-80", openPath80);
+bindClick("btn-close-path80", closePath80);
+bindClick("btn-close-path80-bottom", closePath80);
+bindClick("btn-retry-question", openRetryFromPath80);
+bindClick("btn-scorecard-retry", startRetryDrill);
+bindClick("btn-prep-retry", startRetryDrill);
+bindClick("btn-answers-retry", startRetryDrill);
+bindClick("btn-answers-new-battle", resetBattle);
+bindClick("btn-view-judge-verdict", openVerdictModal);
+bindClick("btn-view-deal-scorecard", showDealScorecardScreen);
+bindClick("btn-close-verdict", closeVerdictModal);
+bindClick("btn-close-verdict-bottom", closeVerdictModal);
+bindClick("btn-verdict-retry", () => {
+  closeVerdictModal();
+  startRetryDrill();
+});
+bindClick("btn-verdict-new-battle", () => {
+  closeVerdictModal();
+  resetBattle();
+});
+document.getElementById("path80-overlay")?.addEventListener("click", (e) => {
   if (e.target === e.currentTarget) closePath80();
 });
+document.getElementById("verdict-overlay")?.addEventListener("click", (e) => {
+  if (e.target === e.currentTarget) closeVerdictModal();
+});
 
-document.getElementById("btn-close-retry")?.addEventListener("click", closeRetryOverlay);
-document.getElementById("btn-submit-retry")?.addEventListener("click", submitRetryAnswer);
-document.getElementById("btn-retry-again")?.addEventListener("click", () => {
+bindClick("btn-close-retry", closeRetryOverlay);
+bindClick("btn-submit-retry", submitRetryAnswer);
+bindClick("btn-retry-again", () => {
   if (state.retryDrill) populateRetryDrill(state.retryDrill);
 });
-document.getElementById("btn-retry-back-scorecard")?.addEventListener("click", () => {
+bindClick("btn-retry-back-scorecard", () => {
   closeRetryOverlay();
   showScreen("scorecard");
 });
-document.getElementById("btn-retry-new-battle")?.addEventListener("click", () => {
+bindClick("btn-retry-new-battle", () => {
   closeRetryOverlay();
   resetBattle();
 });
@@ -2489,7 +2884,7 @@ document.getElementById("retry-overlay")?.addEventListener("click", (e) => {
   if (e.target === e.currentTarget) closeRetryOverlay();
 });
 
-document.getElementById("btn-view-conversation").addEventListener("click", () => {
+bindClick("btn-view-conversation", () => {
   document.getElementById("btn-end-battle").hidden = true;
   document.getElementById("btn-back-scorecard").hidden = false;
   document.getElementById("chat-form").hidden = true;
@@ -2497,7 +2892,7 @@ document.getElementById("btn-view-conversation").addEventListener("click", () =>
   openBattleConversationLog(true);
 });
 
-document.getElementById("btn-back-scorecard").addEventListener("click", () => {
+bindClick("btn-back-scorecard", () => {
   closeRoundsDrawer("battle-rounds-drawer");
   document.getElementById("btn-end-battle").hidden = false;
   document.getElementById("btn-back-scorecard").hidden = true;
@@ -2540,7 +2935,7 @@ document.querySelectorAll(".difficulty-card").forEach((card) => {
   });
 });
 
-document.getElementById("chat-form").addEventListener("submit", (event) => {
+document.getElementById("chat-form")?.addEventListener("submit", (event) => {
   event.preventDefault();
   sendMessage();
 });
@@ -2652,3 +3047,5 @@ if (document.readyState === "loading") {
 } else {
   boot();
 }
+
+initPfFallCanvas();

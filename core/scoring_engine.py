@@ -1544,10 +1544,11 @@ def _call_nemotron_scoring(
     difficulty_profile: str,
     difficulty_label: str,
     resolved_mode: str,
-) -> tuple[dict[str, Any], str, str, str] | None:
+) -> tuple[tuple[dict[str, Any], str, str, str] | None, str]:
     """Call Nemotron for dimension scores only (Call 1).
 
-    Returns (scores, best_answer, weakest_answer, why_weak) on success, or None on failure.
+    Returns ((scores, best_answer, weakest_answer, why_weak), "") on success,
+    or (None, failure_reason) on failure.
     """
     messages = _build_scoring_only_prompt(
         session, signals, local_reference, difficulty_profile, difficulty_label
@@ -1558,11 +1559,12 @@ def _call_nemotron_scoring(
         if result.get("ok") and result.get("content"):
             raw_content = result["content"]
         else:
-            logger.warning("scoring_engine: Nemotron scoring call not ok — %s", result.get("error"))
-            return None
+            err = str(result.get("error") or "api_call_failed")
+            logger.warning("scoring_engine: Nemotron scoring call not ok — %s", err)
+            return None, f"api_error:{err[:120]}"
     except Exception as exc:
         logger.warning("scoring_engine: Nemotron scoring raised — %s", exc)
-        return None
+        return None, f"exception:{str(exc)[:120]}"
 
     parsed, extraction_used = parse_model_json(raw_content)
     if not isinstance(parsed, dict) or not parsed:
@@ -1578,7 +1580,7 @@ def _call_nemotron_scoring(
                 extraction_used,
                 sanitize_for_log(raw_content),
             )
-            return _normalize_scoring_result(parsed)
+            return _normalize_scoring_result(parsed), ""
 
     # Repair attempt
     logger.warning(
@@ -1597,12 +1599,12 @@ def _call_nemotron_scoring(
                 repaired = _normalize_scoring_json(repaired)
             if isinstance(repaired, dict) and repaired and _validate_scoring_json(repaired):
                 logger.info("scoring_engine: repaired scoring JSON OK")
-                return _normalize_scoring_result(repaired)
+                return _normalize_scoring_result(repaired), ""
     except Exception as exc:
         logger.warning("scoring_engine: scoring repair raised — %s", exc)
 
     logger.warning("scoring_engine: Nemotron scoring failed — will fall back to local scores")
-    return None
+    return None, "json_parse_failed"
 
 
 # ---------------------------------------------------------------------------
@@ -1668,6 +1670,7 @@ def generate_claim_based_scorecard(
 
     # Step 3: Nemotron scoring call (Call 1) — skip when no substantive battle answers
     nemotron_scoring_result = None
+    nemotron_failure_reason = ""
     skip_nemotron_scoring = engagement_info["substantive_answers"] == 0
     if skip_nemotron_scoring:
         logger.info(
@@ -1678,7 +1681,7 @@ def generate_claim_based_scorecard(
             has_startup,
         )
     elif resolved_mode == "premium_nvidia":
-        nemotron_scoring_result = _call_nemotron_scoring(
+        nemotron_scoring_result, nemotron_failure_reason = _call_nemotron_scoring(
             session, signals, local_reference,
             difficulty_profile, difficulty_label, resolved_mode,
         )
@@ -1776,6 +1779,7 @@ def generate_claim_based_scorecard(
             "coaching_source": coaching_source,
             "difficulty_profile": difficulty_profile,
             "difficulty_label": difficulty_label,
+            "fallback_reason": "",
         }
         result = _sync_overall_to_dimensions(result)
         result["overall"] = _apply_practice_score_nudge(
@@ -1895,6 +1899,15 @@ def generate_claim_based_scorecard(
                 "Scored from startup description only — complete the battle to earn full points."
                 if skip_nemotron_scoring
                 else "Nemotron scoring failed; used local scoring fallback."
+            )
+        ),
+        "fallback_reason": (
+            "no_battle_answers"
+            if skip_nemotron_scoring and not has_startup and signals.get("signal_count", 0) == 0
+            else (
+                "startup_context_only"
+                if skip_nemotron_scoring
+                else (nemotron_failure_reason or "nemotron_scoring_failed")
             )
         ),
     }

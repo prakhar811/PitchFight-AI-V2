@@ -201,8 +201,11 @@ def _build_followup_messages(
         {"role": "system", "content": system_prompt},
     ]
 
-    # Replay conversation history as role turns (strip attack_tag metadata)
-    for entry in history:
+    # Replay conversation history as role turns (strip attack_tag metadata).
+    # Cap at last 6 entries (3 full Q&A exchanges) so late-round input token
+    # growth never crowds out the output budget on the opponent mode call.
+    trimmed_history = history[-6:] if len(history) > 6 else history
+    for entry in trimmed_history:
         role = entry.get("role", "user")
         content = entry.get("content", "")
         if role == "assistant":
@@ -795,6 +798,148 @@ def _confidence_from_fill(ctx: dict[str, str]) -> str:
     return "low"
 
 
+# ---------------------------------------------------------------------------
+# Deterministic structure confidence (Part A of confidence-consistency fix)
+# ---------------------------------------------------------------------------
+
+_CONFIDENCE_FIELD_WEIGHTS: dict[str, int] = {
+    "name": 10,
+    "problem": 15,
+    "target_users": 12,
+    "solution": 15,
+    "why_ai": 10,
+    "traction": 15,
+    "competitors": 8,
+    "ask": 10,
+}
+
+# If any of these fields is absent the score cannot exceed its cap value.
+_CONFIDENCE_CAPS: tuple[tuple[str, int], ...] = (
+    ("problem",      60),
+    ("solution",     60),
+    ("target_users", 70),
+    ("traction",     74),  # cap below 75 so missing traction → at most medium
+    ("competitors",  92),  # missing competitors → visible gap from 100; still high
+    ("why_ai",       90),  # missing/nonsense why_ai → max 90; one-word answers caught by min-words
+    ("ask",          85),
+)
+
+_FILLER_VALUES = frozenset({
+    "not specified", "n/a", "none", "unknown", "tbd", "-", "",
+    "idk", "i don't know", "i dont know", "not sure", "na", "no idea",
+    "dunno", "nothing", "?", "??", "???", "yes", "no", "nope", "yep",
+    "to be determined", "to be decided", "will update", "coming soon",
+})
+
+# Minimum real-word count for description fields — rejects single-word noise like "idk", "yes", "dunno".
+# Name, competitors, ask intentionally use min=1 (a single-word name or ask is valid).
+_CONF_MIN_WORDS: dict[str, int] = {
+    "problem": 2, "solution": 2, "why_ai": 2, "traction": 2, "target_users": 2,
+}
+
+_CONFIDENCE_USER_SEG_RE = re.compile(
+    r"\b(college students?|university students?|indie developers?|small businesses?|"
+    r"enterprise|founders?|educators?|teachers?|researchers?|professionals?|"
+    r"teams?|parents?|teenagers?|consumers?|startup founders?)\b",
+    re.IGNORECASE,
+)
+_CONFIDENCE_CONCRETE_ASK_RE = re.compile(
+    r"(\$[\d,]+[kKmM]?|\d+[kK]\s*(?:usd|dollars?)?|mentorship|campus pilot|"
+    r"equity partner|co.?founder|sponsorship|strategic partner)",
+    re.IGNORECASE,
+)
+
+
+def _field_is_filled(field: str, val: str) -> bool:
+    """Return True when val contains genuine, substantive content.
+
+    Two checks:
+    1. Not a known filler phrase ("idk", "n/a", "not specified", …)
+    2. At least _CONF_MIN_WORDS[field] real words — blocks single-word noise
+       on description fields while allowing one-word names / ask phrases.
+    """
+    clean = str(val or "").strip()
+    if clean.lower() in _FILLER_VALUES:
+        return False
+    min_w = _CONF_MIN_WORDS.get(field, 1)
+    return len(clean.split()) >= min_w
+
+
+def calculate_structure_confidence(
+    startup_context: dict,
+    raw_pitch_text: str = "",
+) -> dict[str, Any]:
+    """Deterministic confidence score from field completeness + raw-text evidence.
+
+    For the same startup_context and raw_pitch_text the result is always identical —
+    no randomness, no model opinion.
+    """
+    ctx = startup_context or {}
+    text = str(raw_pitch_text or "").strip()
+    reasons: list[str] = []
+
+    # --- Field completeness ---
+    score = 0
+    filled: list[str] = []
+    missing: list[str] = []
+    for field, weight in _CONFIDENCE_FIELD_WEIGHTS.items():
+        if _field_is_filled(field, str(ctx.get(field, "") or "")):
+            score += weight
+            filled.append(field)
+        else:
+            missing.append(field)
+
+    # --- Signal bonus from raw pitch text (pure regex — deterministic) ---
+    bonus = 0
+    number_hits = re.findall(r"\b\d[\d,]*\b", text)
+    if len(number_hits) >= 3:
+        bonus += 10
+    elif number_hits:
+        bonus += 5
+
+    if _CONFIDENCE_USER_SEG_RE.search(text):
+        bonus += 5
+
+    if _CONFIDENCE_CONCRETE_ASK_RE.search(text):
+        bonus += 5
+
+    bonus = min(bonus, 20)
+    score = min(score + bonus, 100)
+
+    # --- Apply caps for critical missing fields ---
+    for field, cap in _CONFIDENCE_CAPS:
+        if field in missing:
+            score = min(score, cap)
+
+    score = max(0, min(100, score))
+
+    # --- Label ---
+    if score >= 75:
+        label = "high"
+    elif score >= 45:
+        label = "medium"
+    else:
+        label = "low"
+
+    # --- Human-readable reasons ---
+    strong = [f for f in ("problem", "solution", "target_users", "traction") if f in filled]
+    if strong:
+        reasons.append(f"Strong signals: {', '.join(strong)}")
+    if bonus >= 10:
+        reasons.append("Concrete numbers detected")
+    elif bonus >= 5:
+        reasons.append("Some evidence detected")
+    if missing:
+        reasons.append(f"Not in pitch: {', '.join(missing)}")
+
+    return {
+        "confidence": label,
+        "confidence_score": score,
+        "confidence_reasons": reasons,
+        "missing_fields": missing,
+    }
+
+
 def _structure_pitch_local_fallback(pitch_text: str) -> dict[str, Any]:
     """Heuristic extraction when Nemotron is unavailable."""
     text = pitch_text.strip()
@@ -874,34 +1019,29 @@ def _structure_pitch_local_fallback(pitch_text: str) -> dict[str, Any]:
             ctx["ask"] = sentence
             break
 
-    missing = _missing_startup_fields(ctx)
     summary = " ".join(sentences[:2])[:220] if sentences else text[:220]
+    conf = calculate_structure_confidence(ctx, pitch_text)
 
     return {
         "ok": True,
         "startup_context": ctx,
-        "missing_fields": missing,
-        "confidence": _confidence_from_fill(ctx),
+        "missing_fields": conf["missing_fields"],
+        "confidence": conf["confidence"],
+        "confidence_score": conf["confidence_score"],
+        "confidence_reasons": conf["confidence_reasons"],
         "brief_summary": summary,
         "source": "local_fallback",
     }
 
 
 def _parse_structure_pitch_response(raw: str) -> dict[str, Any] | None:
+    """Parse Nemotron extraction output. Confidence is NOT taken from the model —
+    it is calculated deterministically by the caller via calculate_structure_confidence."""
     parsed, _ = parse_model_json(raw)
     if not isinstance(parsed, dict):
         return None
 
     ctx = _normalize_startup_context(parsed.get("startup_context"))
-    missing = parsed.get("missing_fields")
-    if not isinstance(missing, list):
-        missing = _missing_startup_fields(ctx)
-    else:
-        missing = [str(f).strip() for f in missing if str(f).strip() in _STARTUP_CONTEXT_FIELDS]
-
-    confidence = str(parsed.get("confidence", "")).strip().lower()
-    if confidence not in ("low", "medium", "high"):
-        confidence = _confidence_from_fill(ctx)
 
     summary = str(parsed.get("brief_summary", "")).strip()
     if not summary:
@@ -909,8 +1049,6 @@ def _parse_structure_pitch_response(raw: str) -> dict[str, Any] | None:
 
     return {
         "startup_context": ctx,
-        "missing_fields": missing,
-        "confidence": confidence,
         "brief_summary": summary,
     }
 
@@ -942,11 +1080,16 @@ def handle_structure_pitch(payload: dict[str, Any]) -> dict[str, Any]:
                     structured = _parse_structure_pitch_response(repair["content"])
 
             if structured is not None:
+                conf = calculate_structure_confidence(
+                    structured["startup_context"], pitch_text
+                )
                 return {
                     "ok": True,
                     "startup_context": structured["startup_context"],
-                    "missing_fields": structured["missing_fields"],
-                    "confidence": structured["confidence"],
+                    "missing_fields": conf["missing_fields"],
+                    "confidence": conf["confidence"],
+                    "confidence_score": conf["confidence_score"],
+                    "confidence_reasons": conf["confidence_reasons"],
                     "brief_summary": structured["brief_summary"],
                     "source": "nemotron",
                 }
