@@ -37,9 +37,9 @@ tags:
 
 **An AI founder pressure arena where student builders practice startup pitches, survive judge-style questions, enter a deal round, and leave with a scorecard that shows exactly what to fix.**
 
-**Try it:** [Live Space](YOUR_SPACE_LINK_HERE) · [Demo Video](YOUR_DEMO_VIDEO_LINK_HERE) · [Hugging Face Blog](YOUR_HF_BLOG_LINK_HERE) · [GitHub](YOUR_GITHUB_LINK_HERE)
+**Try it:** [Live Space](https://huggingface.co/spaces/build-small-hackathon/PITCHFIGHT_AI) · [Demo Video](https://www.youtube.com/watch?v=s4_BzIBhqxc) · [Hugging Face Blog](https://huggingface.co/blog/prakhar811/pitchfight-ai-practice-the-pitch-before-the-real-r) · [GitHub](https://github.com/prakhar811/PitchFight/)
 
-<a href="YOUR_SPACE_LINK_HERE">
+<a href="https://huggingface.co/spaces/build-small-hackathon/PITCHFIGHT_AI">
   <img src="https://raw.githubusercontent.com/prakhar811/PitchFight/9d9c2bf/frontend/assets/landing_page.png" alt="PitchFight AI landing page" width="900"/>
 </a>
 
@@ -91,14 +91,15 @@ PitchFight AI gives student builders a private practice room before the real roo
 
 ## Demo
 
-**Watch the demo:** [YOUR_DEMO_VIDEO_LINK_HERE](YOUR_DEMO_VIDEO_LINK_HERE)
+**Watch the demo:** [https://www.youtube.com/watch?v=s4_BzIBhqxc](https://www.youtube.com/watch?v=s4_BzIBhqxc)
 
-<a href="YOUR_DEMO_VIDEO_LINK_HERE">
+<a href="https://www.youtube.com/watch?v=s4_BzIBhqxc">
   <img src="https://raw.githubusercontent.com/prakhar811/PitchFight/9d9c2bf/frontend/assets/battle_fight.png" alt="PitchFight AI battle mode" width="900"/>
 </a>
 
-**Live Space:** [YOUR_SPACE_LINK_HERE](YOUR_SPACE_LINK_HERE)  
-**Build write-up:** [YOUR_HF_BLOG_LINK_HERE](YOUR_HF_BLOG_LINK_HERE)
+**Live Space:** [https://huggingface.co/spaces/build-small-hackathon/PITCHFIGHT_AI](https://huggingface.co/spaces/build-small-hackathon/PITCHFIGHT_AI)  
+**Build write-up:** [https://huggingface.co/blog/prakhar811/pitchfight-ai-practice-the-pitch-before-the-real-r](https://huggingface.co/blog/prakhar811/pitchfight-ai-practice-the-pitch-before-the-real-r)  
+**GitHub Repository:** [https://github.com/prakhar811/PitchFight/](https://github.com/prakhar811/PitchFight/)
 
 ---
 
@@ -209,10 +210,10 @@ The goal was to create a focused AI product that feels genuinely useful through 
 
 | Item              | Link                               |
 | ----------------- | ---------------------------------- |
-| Live Space        | YOUR_SPACE_LINK_HERE               |
-| Demo Video        | YOUR_DEMO_VIDEO_LINK_HERE          |
-| Hugging Face Blog | YOUR_HF_BLOG_LINK_HERE             |
-| GitHub Repository | YOUR_GITHUB_LINK_HERE              |
+| Live Space        | https://huggingface.co/spaces/build-small-hackathon/PITCHFIGHT_AI               |
+| Demo Video        | https://www.youtube.com/watch?v=s4_BzIBhqxc          |
+| Hugging Face Blog | https://huggingface.co/blog/prakhar811/pitchfight-ai-practice-the-pitch-before-the-real-r             |
+| GitHub Repository | https://github.com/prakhar811/PitchFight/              |
 | Field Notes       | [`FIELD_NOTES.md`](FIELD_NOTES.md) |
 
 ---
