@@ -40,7 +40,7 @@ tags:
 **Try it:** [Live Space](YOUR_SPACE_LINK_HERE) · [Demo Video](YOUR_DEMO_VIDEO_LINK_HERE) · [Hugging Face Blog](YOUR_HF_BLOG_LINK_HERE) · [GitHub](YOUR_GITHUB_LINK_HERE)
 
 <a href="YOUR_SPACE_LINK_HERE">
-  <img src="https://raw.githubusercontent.com/prakhar811/PitchFight/main/assets/pitchfight-landing.png" alt="PitchFight AI landing page" width="900"/>
+  <img src="https://raw.githubusercontent.com/prakhar811/PitchFight/9d9c2bf/frontend/assets/landing_page.png" alt="PitchFight AI landing page" width="900"/>
 </a>
 
 **⚔️ Click the arena above to try PitchFight AI.**
@@ -94,7 +94,7 @@ PitchFight AI gives student builders a private practice room before the real roo
 **Watch the demo:** [YOUR_DEMO_VIDEO_LINK_HERE](YOUR_DEMO_VIDEO_LINK_HERE)
 
 <a href="YOUR_DEMO_VIDEO_LINK_HERE">
-  <img src="https://raw.githubusercontent.com/prakhar811/PitchFight/main/assets/pitchfight-battle.png" alt="PitchFight AI battle mode" width="900"/>
+  <img src="https://raw.githubusercontent.com/prakhar811/PitchFight/9d9c2bf/frontend/assets/battle_fight.png" alt="PitchFight AI battle mode" width="900"/>
 </a>
 
 **Live Space:** [YOUR_SPACE_LINK_HERE](YOUR_SPACE_LINK_HERE)  
@@ -271,7 +271,6 @@ Install `ffmpeg` locally if using voice mode.
 ├── requirements.txt       Python dependencies
 ├── packages.txt           System packages such as ffmpeg
 ├── .env.example           Local environment variable template
-├── assets/                Screenshots for README and submission
 ├── frontend/              Custom HTML, CSS, JS, and UI assets
 ├── core/                  Backend handlers, model router, clients
 ├── FIELD_NOTES.md         Build notes for the Field Notes badge

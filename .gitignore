@@ -65,7 +65,7 @@ temp/
 # Jupyter
 .ipynb_checkpoints/
 
-# README screenshots (hosted via GitHub raw URLs on HF Space)
+# README screenshots — hosted on GitHub (HF git rejects binary PNG pushes)
 assets/*.png
 frontend/assets/battle_fight.png
 frontend/assets/landing_page.png
