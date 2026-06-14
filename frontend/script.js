@@ -78,8 +78,28 @@ function showScreen(name) {
   const app = document.getElementById("app");
   app?.classList.toggle("app-arena-fullwidth", name === "battle" || name === "deal" || name === "scorecard" || name === "dealScorecard");
   app?.classList.toggle("app-scorecard-fullwidth", name === "scorecard");
-  if (name === "landing" && landingIntroComplete) {
-    finalizeLandingIntroStatic();
+  if (name === "landing") {
+    syncLandingViewport();
+    if (landingIntroComplete) {
+      finalizeLandingIntroStatic();
+    }
+  }
+}
+
+/* ---- Landing viewport sync (HF Spaces iframe-safe) ---- */
+
+function syncLandingViewport() {
+  const vh = window.innerHeight;
+  if (!vh) return;
+  document.documentElement.style.setProperty("--landing-vh", `${vh}px`);
+}
+
+function initLandingViewport() {
+  syncLandingViewport();
+  window.addEventListener("resize", syncLandingViewport, { passive: true });
+  window.addEventListener("orientationchange", syncLandingViewport, { passive: true });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", syncLandingViewport, { passive: true });
   }
 }
 
@@ -3013,6 +3033,7 @@ function boot() {
   hideErrorBanner();
   setBriefingMode("quick");
   initBriefPreviewEditors();
+  initLandingViewport();
   initLandingIntro();
   initScorecardTabs();
 

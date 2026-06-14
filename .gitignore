@@ -7,47 +7,65 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.egg
 *.egg-info/
 .eggs/
 dist/
 build/
+pip-wheel-metadata/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .coverage
 htmlcov/
+*.cover
+.hypothesis/
 
 # Virtual environments
 venv/
 .venv/
 env/
+ENV/
 
 # OS / editor
 .DS_Store
 Thumbs.db
+Desktop.ini
 .idea/
 .vscode/
 *.swp
 *.swo
+*~
 
 # Node (if added later)
 node_modules/
+npm-debug.log*
 
-# Gradio runtime / uploads
+# Gradio / Hugging Face runtime
 .gradio/
+flagged/
 
 # Local model weights & generated media (large / machine-specific)
 models/
 *.gguf
+*.bin
+*.safetensors
 *.wav
 *.mp3
+*.webm
+uploads/
+tmp/
+temp/
 
-# Local-only folders
-docs/
-scripts/
-tests/
+# Logs & local databases
+*.log
+*.sqlite
+*.sqlite3
 
-# Environment files
-.env
-.env.*
-.env.example
+# Jupyter
+.ipynb_checkpoints/
+
+# README screenshots (hosted via GitHub raw URLs on HF Space)
+assets/*.png
+frontend/assets/battle_fight.png
+frontend/assets/landing_page.png
