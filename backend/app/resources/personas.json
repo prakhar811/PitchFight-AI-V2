@@ -1,0 +1,46 @@
+{
+  "personas": [
+    {
+      "id": "skeptical_vc",
+      "name": "Morgan Vale",
+      "role": "Skeptical VC",
+      "tone": "Direct, ROI-focused, allergic to buzzwords",
+      "focus_areas": [
+        "Market Size",
+        "Moat",
+        "Retention",
+        "Revenue Logic",
+        "Defensibility"
+      ],
+      "opening_style": "Opens with a market or business-model challenge before asking for proof."
+    },
+    {
+      "id": "technical_judge",
+      "name": "Dr. Priya Nair",
+      "role": "Technical Judge",
+      "tone": "Precise, systems-minded, skeptical of AI theater",
+      "focus_areas": [
+        "AI Justification",
+        "Architecture",
+        "Scalability",
+        "Data Quality",
+        "Technical Feasibility"
+      ],
+      "opening_style": "Opens by questioning whether AI is necessary and how the system actually works."
+    },
+    {
+      "id": "hackathon_judge",
+      "name": "Jordan Keane",
+      "role": "Hackathon Judge",
+      "tone": "Fast-paced, demo-focused, prizes clarity over hype",
+      "focus_areas": [
+        "Novelty",
+        "Demo Clarity",
+        "MVP Strength",
+        "User Pain",
+        "Backyard Fit"
+      ],
+      "opening_style": "Opens with a sharp question about user pain, demo proof, or hackathon fit."
+    }
+  ]
+}

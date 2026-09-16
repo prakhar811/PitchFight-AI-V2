@@ -1,7 +1,7 @@
 # Secrets — never commit real keys
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 
 # Python
 __pycache__/
@@ -13,6 +13,7 @@ __pycache__/
 dist/
 build/
 pip-wheel-metadata/
+
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -37,16 +38,17 @@ Desktop.ini
 *.swo
 *~
 
-# Node (if added later)
+# Node
 node_modules/
 npm-debug.log*
 
-# Gradio / Hugging Face runtime
+# Gradio / Hugging Face runtime (legacy V1)
 .gradio/
 flagged/
 
 # Local model weights & generated media (large / machine-specific)
-models/
+# Root-only so backend/app/models/ (SQLAlchemy scaffolds) is not ignored.
+/models/
 *.gguf
 *.bin
 *.safetensors

@@ -1,293 +1,94 @@
----
-title: PitchFight AI
-emoji: ⚔️
-colorFrom: red
-colorTo: yellow
-sdk: gradio
-sdk_version: 6.17.3
-python_version: 3.12
-app_file: app.py
-pinned: true
-license: mit
-short_description: An AI founder pressure arena for practicing startup pitches.
-tags:
-  - gradio
-  - build-small-hackathon
-  - backyard-ai
-  - startup
-  - pitch-practice
-  - founder-tooling
-  - voice-ai
-  - nvidia
-  - nemotron
-  - track:backyard
-  - sponsor:nvidia
-  - achievement:offbrand
-  - achievement:fieldnotes
-  - achievement:bestdemo
-  - best-demo
-  - community-choice
----
+# PitchFight AI V2
 
-<div align="center">
+Your first tough pitch should not be in front of a real judge.
 
-# ⚔️ PitchFight AI
+PitchFight AI is an AI founder pressure arena: student builders practice startup pitches, survive judge-style questions, enter a deal round, and leave with a scorecard that shows what to fix.
 
-### Your first tough pitch should not be in front of a real judge.
+This repository is the **V2 rebuild**. This phase is structure and scaffolding only. Product features, databases, authentication, and inference are not implemented yet.
 
-**An AI founder pressure arena where student builders practice startup pitches, survive judge-style questions, enter a deal round, and leave with a scorecard that shows exactly what to fix.**
+The original V1 project remains in a separate repository. A copy of that implementation lives under `legacy/` as migration reference. **V2 code must not import from `legacy/`.**
 
-**Try it:** [Live Space](https://huggingface.co/spaces/build-small-hackathon/PITCHFIGHT_AI) · [Demo Video](https://www.youtube.com/watch?v=s4_BzIBhqxc) · [Hugging Face Blog](https://huggingface.co/blog/prakhar811/pitchfight-ai-practice-the-pitch-before-the-real-r) · [GitHub](https://github.com/prakhar811/PitchFight/)
+## Current status
 
-<a href="https://huggingface.co/spaces/build-small-hackathon/PITCHFIGHT_AI">
-  <img src="https://raw.githubusercontent.com/prakhar811/PitchFight/9d9c2bf/frontend/assets/landing_page.png" alt="PitchFight AI landing page" width="900"/>
-</a>
+The API boots and serves a health check:
 
-**⚔️ Click the arena above to try PitchFight AI.**
-
-</div>
-
----
-
-## TL;DR for Judges
-
-- **Backyard AI:** PitchFight AI helps student founders practice before hackathons, demo days, mentor reviews, and pitch rooms.
-- **NVIDIA Nemotron Quest:** The judge reasoning is powered by NVIDIA Nemotron through the backend API.
-- **Off Brand:** The app uses a custom cinematic frontend instead of default Gradio components.
-- **Best Demo:** The submission includes a live Space, demo video, and Hugging Face Blog write-up.
-- **Field Notes:** `FIELD_NOTES.md` and the Hugging Face Blog explain the product idea, build decisions, and technical approach.
-- **Community Choice:** The public Space is available for users to try and upvote.
-- **Judges' Wildcard:** PitchFight AI combines founder tooling, coaching, voice, and pressure simulation in one focused demo.
-
----
-
-## Why this exists
-
-Most student founders do not lose because their idea is bad.
-
-They lose because the first hard question comes too late.
-
-> "What is your moat?"  
-> "Who exactly pays?"  
-> "Why now?"  
-> "What happens if a bigger player copies this?"
-
-PitchFight AI gives student builders a private practice room before the real room. It turns pitch practice into a pressure battle so founders can sharpen their story, defend their idea, and build confidence before facing real judges.
-
----
-
-## What you can do
-
-- **Enter your startup idea.** Start with a raw pitch or load a demo founder.
-- **Get a founder briefing.** The system structures your idea into problem, solution, users, traction, competitors, and ask.
-- **Choose your opponent.** Face a Skeptical VC, Technical Judge, or Hackathon Judge.
-- **Pick the pressure level.** Practice Mode, Judge Mode, and Investor Mode change the intensity.
-- **Survive pitch rounds.** Answer realistic follow-up questions based on your pitch.
-- **Use voice mode.** Practice pitching and answering out loud.
-- **Enter the deal phase.** Defend your ask in a negotiation-style pressure round.
-- **Get a scorecard.** See what landed, what broke, and what to improve next.
-
----
-
-## Demo
-
-**Watch the demo:** [https://www.youtube.com/watch?v=s4_BzIBhqxc](https://www.youtube.com/watch?v=s4_BzIBhqxc)
-
-<a href="https://www.youtube.com/watch?v=s4_BzIBhqxc">
-  <img src="https://raw.githubusercontent.com/prakhar811/PitchFight/9d9c2bf/frontend/assets/battle_fight.png" alt="PitchFight AI battle mode" width="900"/>
-</a>
-
-**Live Space:** [https://huggingface.co/spaces/build-small-hackathon/PITCHFIGHT_AI](https://huggingface.co/spaces/build-small-hackathon/PITCHFIGHT_AI)  
-**Build write-up:** [https://huggingface.co/blog/prakhar811/pitchfight-ai-practice-the-pitch-before-the-real-r](https://huggingface.co/blog/prakhar811/pitchfight-ai-practice-the-pitch-before-the-real-r)  
-**GitHub Repository:** [https://github.com/prakhar811/PitchFight/](https://github.com/prakhar811/PitchFight/)
-
----
-
-## How it is built
-
-PitchFight AI runs as a Hugging Face Gradio Space, but the user experience is built as a custom frontend rather than a default Gradio interface.
-
-The frontend talks to backend routes in `app.py`. The backend handles pitch structuring, judge personas, battle state, voice mode, deal rounds, and scorecard generation. NVIDIA Nemotron is used as the core reasoning model for the AI judge.
-
-```mermaid
-flowchart LR
-    founder[Student Founder] --> ui[Custom PitchFight Frontend]
-    ui --> api[Gradio Backend / app.py]
-    api --> router[Model Router]
-    router --> nemotron[NVIDIA Nemotron API]
-    nemotron --> judge[Judge Questions + Feedback]
-    judge --> ui
-    api --> scorecard[Scorecard + Coaching]
-    scorecard --> ui
+```bash
+uvicorn app.main:app --app-dir backend
 ```
-
----
-
-## System flow
-
-1. The founder submits or records a startup pitch.
-2. The backend structures the pitch into a founder briefing.
-3. The founder chooses an opponent and difficulty mode.
-4. The AI judge asks multi-round follow-up questions.
-5. The founder answers under pressure.
-6. The system evaluates clarity, confidence, defensibility, and traction.
-7. The founder enters a deal-style round.
-8. The final scorecard highlights strengths, weak points, and retry suggestions.
-
----
-
-## Tech stack
-
-| Layer                | Technology                          |
-| -------------------- | ----------------------------------- |
-| Hosting              | Hugging Face Spaces                 |
-| Runtime              | Gradio                              |
-| Backend              | Python, `app.py`, custom API routes |
-| Frontend             | Custom HTML, CSS, JavaScript        |
-| AI Judge             | NVIDIA Nemotron                     |
-| Voice Support        | Nemotron Omni / voice pipeline      |
-| Audio Support        | ffmpeg                              |
-| Optional Persistence | MongoDB                             |
-| Deployment Secrets   | Hugging Face Space Secrets          |
-
----
-
-## NVIDIA usage
-
-PitchFight AI uses NVIDIA Nemotron as the core judge and reasoning model.
-
-The backend calls the NVIDIA API through:
 
 ```text
-https://integrate.api.nvidia.com/v1
+GET /api/v1/health
 ```
 
-Primary model:
+```json
+{
+  "status": "ok",
+  "service": "pitchfight-api"
+}
+```
+
+Python version: **3.11** (see `.python-version`).
+
+## Architecture
+
+V2 is a **modular monolith**:
 
 ```text
-nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+Route → Service → Repository / AI Orchestrator → Database / Model Server
 ```
 
-The model is used for:
+Those layers are scaffolded as packages. Business logic is not implemented in this phase.
 
-- founder brief structuring
-- judge persona reasoning
-- pitch battle follow-up questions
-- deal round pressure
-- final scorecard feedback
-
-`NVIDIA_API_KEY` is stored only as a backend secret and is never exposed to frontend JavaScript.
-
----
-
-## Built for the Build Small Hackathon
-
-PitchFight AI was built for the Hugging Face **Build Small Hackathon**.
-
-The goal was to create a focused AI product that feels genuinely useful through structured reasoning, judge personas, voice interaction, and a polished custom interface.
-
-| Prize / Badge             | Status    | Why PitchFight AI qualifies                                                       |
-| ------------------------- | --------- | --------------------------------------------------------------------------------- |
-| **Backyard AI**           | Submitted | Helps student founders practice for real-world pitch situations.                  |
-| **NVIDIA Nemotron Quest** | Submitted | Uses NVIDIA Nemotron as the core reasoning model.                                 |
-| **Off Brand**             | Submitted | Fully custom cinematic frontend, not default Gradio UI.                           |
-| **Best Demo**             | Submitted | Live Space, demo video, and blog write-up are linked.                             |
-| **Field Notes**           | Submitted | Hugging Face Blog and `FIELD_NOTES.md` explain the idea, build, and tech.         |
-| **Community Choice**      | Eligible  | Public Space is available for users to try and upvote.                            |
-| **Judges' Wildcard**      | Eligible  | PitchFight AI combines founder tooling, coaching, voice, and pressure simulation. |
-
-### Not claiming
-
-- **OpenBMB / MiniCPM:** PitchFight AI uses NVIDIA Nemotron, not MiniCPM.
-- **Modal:** Not claimed unless Modal is used in development or runtime.
-- **Tiny Titan:** Not claimed because the primary model is not ≤4B.
-- **Off the Grid:** Not claimed because the app uses the NVIDIA hosted API.
-- **Fine-tuning:** Not claimed. Inference uses the hosted Nemotron API only.
-
----
-
-## Submission links
-
-| Item              | Link                               |
-| ----------------- | ---------------------------------- |
-| Live Space        | https://huggingface.co/spaces/build-small-hackathon/PITCHFIGHT_AI               |
-| Demo Video        | https://www.youtube.com/watch?v=s4_BzIBhqxc          |
-| Hugging Face Blog | https://huggingface.co/blog/prakhar811/pitchfight-ai-practice-the-pitch-before-the-real-r             |
-| GitHub Repository | https://github.com/prakhar811/PitchFight/              |
-| Field Notes       | [`FIELD_NOTES.md`](FIELD_NOTES.md) |
-
----
-
-## Hugging Face deployment
-
-Required Space secret:
-
-```bash
-NVIDIA_API_KEY=
-```
-
-Optional variables:
-
-```bash
-APP_ENV=production
-MAX_ROUNDS=6
-DEFAULT_MODEL_MODE=premium_nvidia
-NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
-NVIDIA_OMNI_MODEL=nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
-ENABLE_DECK_CRITIQUE=true
-ENABLE_DEAL_BATTLE=true
-ENABLE_VOICE_MODE=true
-MONGODB_URI=
-```
-
-Never put API keys in frontend code or commit real secrets to GitHub.
-
----
-
-## Run locally
-
-```bash
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-cp .env.example .env
-python app.py
-```
-
-Open:
-
-```bash
-http://127.0.0.1:7860
-```
-
-Install `ffmpeg` locally if using voice mode.
-
----
-
-## Project structure
+## Repository layout
 
 ```text
 .
-├── app.py                 Gradio app entrypoint and backend routes
-├── requirements.txt       Python dependencies
-├── packages.txt           System packages such as ffmpeg
-├── .env.example           Local environment variable template
-├── frontend/              Custom HTML, CSS, JS, and UI assets
-├── core/                  Backend handlers, model router, clients
-├── FIELD_NOTES.md         Build notes for the Field Notes badge
-└── README.md              Space card and hackathon submission write-up
+├── backend/          FastAPI application (V2)
+├── frontend/         Existing V1 custom UI (unchanged in this phase)
+├── inference/        Future Modal / vLLM model serving
+├── infra/            Future Docker Compose (PostgreSQL, MongoDB, Redis)
+├── docs/             Architecture notes and V1 field notes
+├── legacy/           V1 implementation, migration reference only
+└── scripts/
 ```
 
----
+## Local setup (scaffold)
 
-## Safety note
+```bash
+python -m venv .venv
+# Windows
+.\.venv\Scripts\Activate.ps1
+pip install -r backend/requirements-dev.txt
+copy .env.example .env
+```
 
-PitchFight AI is a practice and coaching tool. It does not replace real mentors, investors, or legal/financial advisors. It is designed to help founders sharpen their pitch before entering the real room.
+Run the API:
 
----
+```bash
+uvicorn app.main:app --app-dir backend --reload
+```
 
-<div align="center">
+Run the health test:
 
-**If your pitch can survive the arena, it has a better chance in the room.**
+```bash
+cd backend
+pytest tests/test_health.py
+```
 
-</div>
+## Frontend
+
+The current frontend is the V1 HTML/CSS/JS UI. It is intentionally unchanged. React migration is scheduled later in the V2 rebuild.
+
+## What is not in this phase
+
+- PostgreSQL / MongoDB / Redis connections
+- JWT authentication
+- Simulation and scoring logic
+- AI orchestration, prompts, and model routing
+- Modal, vLLM, and model downloading
+- Docker Compose
+- Frontend React migration
+
+## Next planned phase
+
+Local Infrastructure — PostgreSQL + MongoDB + Redis via Docker Compose

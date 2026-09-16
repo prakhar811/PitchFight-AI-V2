@@ -1,0 +1,32 @@
+{
+  "skeptical_vc": [
+    "Market Size",
+    "Moat",
+    "Retention",
+    "Revenue Logic",
+    "First 100 Users",
+    "Why Now",
+    "Competition",
+    "Defensibility"
+  ],
+  "technical_judge": [
+    "AI Justification",
+    "Architecture",
+    "Scalability",
+    "Latency",
+    "Data Quality",
+    "Failure Mode",
+    "Simpler Alternative",
+    "Technical Feasibility"
+  ],
+  "hackathon_judge": [
+    "Novelty",
+    "Demo Clarity",
+    "MVP Strength",
+    "User Pain",
+    "AI Load-Bearing",
+    "Backyard Fit",
+    "Practical Impact",
+    "Judging Memorability"
+  ]
+}
