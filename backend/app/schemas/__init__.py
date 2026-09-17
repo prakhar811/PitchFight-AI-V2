@@ -1,5 +1,6 @@
 """Pydantic request and response schemas."""
 
+from app.schemas.auth import LoginRequest, TokenResponse
 from app.schemas.common import CriterionResult
 from app.schemas.judge_persona import JudgePersonaRead
 from app.schemas.pitch import PitchCreate, PitchRead, PitchUpdate
@@ -17,4 +18,6 @@ __all__ = [
     "JudgePersonaRead",
     "SimulationRead",
     "ScorecardRead",
+    "LoginRequest",
+    "TokenResponse",
 ]

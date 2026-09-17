@@ -1,7 +1,7 @@
 """Application settings.
 
-This phase exposes generic app configuration plus PostgreSQL connection
-settings. Auth and inference settings will be added in later tasks.
+Exposes generic app configuration, PostgreSQL connection settings, and JWT
+authentication settings. Inference settings will be added in later tasks.
 """
 
 from pathlib import Path
@@ -27,6 +27,12 @@ class Settings(BaseSettings):
 
     # PostgreSQL — asyncpg driver, no sync fallback configured.
     DATABASE_URL: str
+
+    # JWT authentication — secret must come from the environment, never a
+    # hardcoded default.
+    JWT_SECRET_KEY: str
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
 
 settings = Settings()

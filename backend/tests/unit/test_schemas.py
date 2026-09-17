@@ -18,9 +18,14 @@ from app.schemas import (
 
 
 def test_user_create_accepts_email_and_password() -> None:
-    user = UserCreate(email="founder@example.com", password="hunter2")
+    user = UserCreate(email="founder@example.com", password="hunter22")
     assert user.email == "founder@example.com"
-    assert user.password == "hunter2"
+    assert user.password == "hunter22"
+
+
+def test_user_create_rejects_short_password() -> None:
+    with pytest.raises(ValidationError):
+        UserCreate(email="founder@example.com", password="short")
 
 
 def test_user_read_never_exposes_password_hash() -> None:
