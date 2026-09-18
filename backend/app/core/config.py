@@ -1,8 +1,9 @@
 """Application settings.
 
 Exposes generic app configuration, PostgreSQL connection settings, JWT
-authentication settings, MongoDB connection settings, and Redis live-state
-settings. Inference settings will be added in later tasks.
+authentication settings, MongoDB connection settings, Redis live-state
+settings, and the model-abstraction default alias. Real provider
+credentials (NVIDIA/Modal/vLLM/...) will be added in a later phase.
 """
 
 from pathlib import Path
@@ -44,6 +45,10 @@ class Settings(BaseSettings):
     REDIS_SESSION_TTL_SECONDS: int = 86400
     REDIS_JUDGE_CONFIG_TTL_SECONDS: int = 10800
     REDIS_VOICE_TTL_SECONDS: int = 1200
+
+    # Model abstraction — which registered ModelRouter alias to use by
+    # default. "fake" requires no external provider/credentials at all.
+    MODEL_DEFAULT_ALIAS: str = "fake"
 
 
 settings = Settings()

@@ -1,7 +1,11 @@
-"""Model provider adapters.
+"""Model provider adapters — each wraps one provider behind ModelClient.
 
-Future responsibility: wrap provider-specific APIs behind a shared
-client interface.
+fake.py — deterministic in-process client for tests/offline development.
 
-TODO: Add provider modules when model serving is implemented.
+Real providers (NVIDIA/Nemotron via vLLM/Modal, etc.) are Phase 12 work.
+Nothing here makes a network call.
 """
+
+from app.ai.providers.fake import FakeModelClient
+
+__all__ = ["FakeModelClient"]
