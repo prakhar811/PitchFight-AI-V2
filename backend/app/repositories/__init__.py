@@ -12,6 +12,7 @@ from app.repositories.conversation_repository import (
     ConversationRepository,
 )
 from app.repositories.judge_config_cache import JudgeConfigCache
+from app.repositories.judge_persona_repository import JudgePersonaRepository
 from app.repositories.mongo_conversation_repository import MongoConversationRepository
 from app.repositories.pitch_repository import PitchRepository
 from app.repositories.redis_session_state_repository import RedisSessionStateRepository
@@ -21,16 +22,17 @@ from app.repositories.user_repository import UserRepository
 from app.repositories.voice_state_cache import VoiceStateCache
 
 __all__ = [
-    "UserRepository",
-    "PitchRepository",
-    "SimulationSessionRepository",
-    "ScoreRepository",
-    "ConversationRepository",
-    "ConversationEvent",
     "ConversationDocument",
+    "ConversationEvent",
     "ConversationNotFoundError",
-    "MongoConversationRepository",
-    "RedisSessionStateRepository",
+    "ConversationRepository",
     "JudgeConfigCache",
+    "JudgePersonaRepository",
+    "MongoConversationRepository",
+    "PitchRepository",
+    "RedisSessionStateRepository",
+    "ScoreRepository",
+    "SimulationSessionRepository",
+    "UserRepository",
     "VoiceStateCache",
 ]

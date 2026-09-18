@@ -15,7 +15,7 @@ from sqlalchemy import delete
 from app.core.config import settings
 from app.database.mongo import get_mongo_client
 from app.database.postgres import async_session_maker
-from app.models import JudgePersona, User
+from app.models import JudgePersona, Pitch, User
 
 # Mongo tests run against a dedicated database, never the dev `pitchfight`
 # database, so leftover/failed test runs can never pollute real dev data.
@@ -57,6 +57,28 @@ async def judge_persona() -> JudgePersona:
         await session.refresh(persona)
         yield persona
         await session.execute(delete(JudgePersona).where(JudgePersona.id == persona.id))
+        await session.commit()
+
+
+@pytest.fixture
+async def pitch(user: User) -> Pitch:
+    async with async_session_maker() as session:
+        new_pitch = Pitch(
+            user_id=user.id,
+            startup_name="PitchFight",
+            problem="Founders can't rehearse investor pressure.",
+            target_users="First-time founders",
+            solution="AI judges that simulate real pitch pressure.",
+            why_ai="LLMs can adapt tone and difficulty in real time.",
+            traction="10 pilot users",
+            competitors="Practicing with friends",
+            ask="Pre-seed funding",
+        )
+        session.add(new_pitch)
+        await session.commit()
+        await session.refresh(new_pitch)
+        yield new_pitch
+        await session.execute(delete(Pitch).where(Pitch.id == new_pitch.id))
         await session.commit()
 
 
