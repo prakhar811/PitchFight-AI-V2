@@ -75,7 +75,14 @@ def test_malformed_token_rejected() -> None:
 
 def test_tampered_signature_token_rejected() -> None:
     token = create_access_token(uuid.uuid4())
-    tampered = token[:-1] + ("A" if token[-1] != "A" else "B")
+    header, payload, signature = token.split(".")
+    # Flip the *first* character of the signature, not the last: base64url's
+    # final character of a segment can carry unused "don't care" bits (the
+    # signature is 32 bytes, not a multiple of 3), so some replacement
+    # characters there decode to identical bytes — an intermittently
+    # no-op tamper. The first character has no such ambiguity.
+    tampered_char = "A" if signature[0] != "A" else "B"
+    tampered = f"{header}.{payload}.{tampered_char}{signature[1:]}"
     with pytest.raises(InvalidTokenError):
         decode_access_token(tampered)
 

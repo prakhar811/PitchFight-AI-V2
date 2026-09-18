@@ -1,7 +1,8 @@
 """ConversationRepository contract checks.
 
-MongoDB persistence is not implemented yet, so this only verifies the
-abstract interface shape — no database of any kind is touched here.
+Verifies only the abstract interface shape — no database of any kind is
+touched here. See test_mongo_conversation_repository.py for the concrete
+MongoConversationRepository behavior against real MongoDB.
 """
 
 import inspect
