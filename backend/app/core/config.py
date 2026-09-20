@@ -2,8 +2,8 @@
 
 Exposes generic app configuration, PostgreSQL connection settings, JWT
 authentication settings, MongoDB connection settings, Redis live-state
-settings, and the model-abstraction default alias. Real provider
-credentials (NVIDIA/Modal/vLLM/...) will be added in a later phase.
+settings, and model-abstraction settings (default alias, plus the
+Modal-hosted vLLM/Nemotron endpoint config for the real provider).
 """
 
 from pathlib import Path
@@ -49,6 +49,16 @@ class Settings(BaseSettings):
     # Model abstraction — which registered ModelRouter alias to use by
     # default. "fake" requires no external provider/credentials at all.
     MODEL_DEFAULT_ALIAS: str = "fake"
+
+    # Real provider (Phase 12B) — the Modal-hosted vLLM/Nemotron endpoint
+    # validated standalone in Phase 12A. All optional: importing Settings
+    # (and running the test suite) never requires real credentials to
+    # exist; a "nemotron" client just can't be constructed until they do.
+    MODEL_NEMOTRON_BASE_URL: str | None = None
+    MODEL_NEMOTRON_NAME: str = "pitchfight-nemotron"
+    MODAL_KEY: str | None = None
+    MODAL_SECRET: str | None = None
+    MODEL_REQUEST_TIMEOUT: float = 30.0
 
 
 settings = Settings()

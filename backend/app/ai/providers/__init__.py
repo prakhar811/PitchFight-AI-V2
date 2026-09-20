@@ -1,11 +1,10 @@
 """Model provider adapters — each wraps one provider behind ModelClient.
 
 fake.py — deterministic in-process client for tests/offline development.
-
-Real providers (NVIDIA/Nemotron via vLLM/Modal, etc.) are Phase 12 work.
-Nothing here makes a network call.
+vllm.py — real Modal-hosted vLLM/Nemotron endpoint (Phase 12A/12B).
 """
 
 from app.ai.providers.fake import FakeModelClient
+from app.ai.providers.vllm import VLLMModelClient
 
-__all__ = ["FakeModelClient"]
+__all__ = ["FakeModelClient", "VLLMModelClient"]
