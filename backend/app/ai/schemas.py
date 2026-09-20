@@ -118,6 +118,56 @@ class DealNegotiationOutput(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# AIOrchestrator (Phase 13) inputs — one typed request per supported task.
+# Everything here is content/context only; which model alias handles the
+# call is a separate, orthogonal concern (see AIOrchestrator's method
+# signatures), not a field on these schemas.
+# ---------------------------------------------------------------------------
+
+
+class BaseGenerationRequest(BaseModel):
+    """Fields shared by every AIOrchestrator task-generation request —
+    mirrors PromptContext minus `task` (each orchestrator method already
+    implies its own task) and minus `task_context` (task-specific
+    subclasses below expose their own typed extra fields instead of a
+    free-form dict)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    judge_config_version: str
+    difficulty: Difficulty
+
+    pitch_snapshot: dict[str, Any]
+
+    current_phase: str
+    battle_round: int = 0
+    deal_round: int = 0
+    active_attack_tag: str | None = None
+    completed_attack_tags: list[str] = []
+
+    recent_events: list[RecentEvent] = []
+
+
+class BattleQuestionRequest(BaseGenerationRequest):
+    """No task-specific fields — a fresh primary question needs only the
+    shared simulation context."""
+
+
+class BattleFollowupRequest(BaseGenerationRequest):
+    # The founder's most recent answer, being followed up on.
+    prior_answer: str
+
+
+class RetryFeedbackRequest(BaseGenerationRequest):
+    original_answer: str
+    retry_answer: str
+
+
+class DealNegotiationRequest(BaseGenerationRequest):
+    founder_offer: str | None = None
+
+
+# ---------------------------------------------------------------------------
 # Model abstraction layer — provider-neutral request/response vocabulary.
 # No OpenAI message IDs, no Anthropic blocks, no Nemotron chat-template
 # tokens, no Modal request types. A provider implementation adapts these,
